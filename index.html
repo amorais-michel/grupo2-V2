@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventMatch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #9B2A2A;
+            --orange: #FF6B35;
+            --yellow: #FFB400;
+            --green: #2A9D8F;
+            --dark-green: #1E3A3A;
+            --glass: rgba(255,255,255,0.95);
+            --shadow: 0 25px 70px rgba(0,0,0,0.25);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: linear-gradient(135deg, var(--primary), var(--dark-green));
+            height: 100vh; overflow: hidden; user-select: none;
+        }
+        .screen { display: none; height: 100vh; }
+        .screen.active { display: block; }
+
+        .spinner { 
+            border: 5px solid rgba(255,255,255,0.3); 
+            border-top: 5px solid white; 
+            border-radius: 50%; 
+            width: 50px; height: 50px; 
+            animation: spin 1s linear infinite; 
+            margin: 0 auto 15px; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .login-container { 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; height: 100vh; text-align: center; color: white; 
+        }
+
+        .header { 
+            background: var(--glass); backdrop-filter: blur(30px); 
+            padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; 
+        }
+        .user-info { display: flex; align-items: center; gap: 15px; cursor: pointer; }
+        .user-photo { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 3px solid white; }
+
+        .search-bar { 
+            width: 100%; max-width: 420px; padding: 14px 20px; 
+            border-radius: 50px; border: none; font-size: 1rem; 
+            margin: 10px auto; display: block; 
+        }
+
+        .tinder-container { height: calc(100vh - 130px); padding: 20px; position: relative; }
+        .swipe-area { height: 100%; position: relative; }
+
+        .event-card {
+            position: absolute; width: clamp(320px, 90%, 380px); height: 560px;
+            background: white; border-radius: 25px; padding: 30px;
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+            box-shadow: var(--shadow);
+        }
+
+        .rating { display: flex; gap: 5px; font-size: 1.4rem; }
+        .star.filled { color: #FFB400; }
+        .star.empty { color: #ddd; }
+
+        .action-buttons { 
+            position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%); 
+            display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; 
+        }
+        .btn-nope, .btn-like, .btn-superlike {
+            border-radius: 50%; border: none; cursor: pointer; 
+            box-shadow: 0 12px 35px rgba(0,0,0,0.35);
+        }
+        .btn-nope { width: 65px; height: 65px; background: linear-gradient(45deg, #e63939, var(--primary)); color: white; font-size: 28px; }
+        .btn-like { width: 78px; height: 78px; background: linear-gradient(45deg, var(--green), #1a7a6e); color: white; font-size: 34px; }
+        .btn-superlike { width: 62px; height: 62px; background: linear-gradient(45deg, var(--yellow), #e0a000); color: white; font-size: 26px; }
+
+        .profile-container { padding: 25px; overflow-y: auto; color: white; }
+        .back-btn { 
+            position: absolute; top: 25px; left: 25px; 
+            background: rgba(255,255,255,0.25); color: white; border: none; 
+            padding: 12px 24px; border-radius: 30px; cursor: pointer; 
+        }
+        .my-event-item { 
+            background: white; color: #333; border-radius: 20px; padding: 25px; 
+            margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); 
+        }
+        .my-event-item.owner { border-left: 6px solid var(--primary); }
+
+        /* CHAT */
+        .chat-header { 
+            background: var(--primary); color: white; padding: 15px 20px; 
+            display: flex; align-items: center; gap: 15px; 
+        }
+        .chat-messages { 
+            height: calc(100vh - 180px); overflow-y: auto; padding: 20px; background: #f8f9fa; 
+        }
+        .message { margin-bottom: 18px; max-width: 80%; }
+        .message.sent { margin-left: auto; text-align: right; }
+        .message-bubble { 
+            padding: 12px 18px; border-radius: 20px; background: #e3f2fd; display: inline-block; 
+        }
+        .message.sent .message-bubble { background: var(--green); color: white; }
+        .chat-input-area { 
+            padding: 15px; background: white; border-top: 1px solid #ddd; 
+            display: flex; gap: 10px; 
+        }
+        .chat-input { flex: 1; padding: 14px 20px; border: 2px solid #ddd; border-radius: 30px; font-size: 1rem; }
+        .send-btn { 
+            width: 52px; height: 52px; border: none; background: var(--green); 
+            color: white; border-radius: 50%; font-size: 24px; cursor: pointer; 
+        }
+
+        .modal { 
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
+            z-index: 3000; align-items: center; justify-content: center; 
+        }
+        .modal.active { display: flex; }
+        .modal-content { 
+            background: white; padding: 40px; border-radius: 25px; 
+            width: 92%; max-width: 520px; max-height: 92vh; overflow-y: auto; 
+        }
+        .modal-content input, .modal-content textarea, .modal-content select {
+            width: 100%; padding: 16px; margin-bottom: 18px; border: 2px solid #ddd; 
+            border-radius: 12px; font-size: 1rem;
+        }
+
+        #toast { 
+            position: fixed; bottom: 30px; right: 30px; padding: 18px 25px; 
+            border-radius: 20px; color: white; font-weight: 600; 
+            transform: translateX(400px); transition: all 0.4s; z-index: 5000; 
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOADING -->
+    <div id="globalLoading" style="position:fixed;inset:0;background:linear-gradient(135deg, #9B2A2A, #1E3A3A);display:none;align-items:center;justify-content:center;z-index:9999;color:white;">
+        <div style="text-align:center;"><div class="spinner"></div><div>Carregando...</div></div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <h1 style="font-size:3.8rem;margin-bottom:20px;font-weight:700;">EventMatch</h1>
+            <p style="margin-bottom:50px;opacity:0.9;font-size:1.2rem;">Eventos incríveis com um swipe</p>
+            <button id="googleLoginBtn" style="background:white;color:#333;padding:14px 32px;border:none;border-radius:50px;font-size:1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;">
+                <img src="https://developers.google.com/identity/images/g-logo.png" width="28" height="28" alt="Google">
+                Entrar com Google
+            </button>
+        </div>
+    </div>
+
+    <!-- TINDER -->
+    <div id="tinderScreen" class="screen">
+        <header class="header">
+            <div class="user-info" onclick="showProfile()">
+                <img id="userPhoto" class="user-photo" src="" alt="">
+                <div id="userName" style="font-weight:600;font-size:1.1rem;">Usuário</div>
+            </div>
+            <div>
+                <button id="addEventBtn" style="background:var(--orange);color:white;border:none;padding:12px 26px;border-radius:30px;margin-right:8px;font-weight:600;">+ Evento</button>
+                <button id="logoutBtn" style="background:var(--primary);color:white;border:none;padding:12px 26px;border-radius:30px;font-weight:600;">Sair</button>
+            </div>
+        </header>
+        <div class="tinder-container">
+            <input type="text" id="eventSearch" class="search-bar" placeholder="🔍 Buscar eventos...">
+            <div class="swipe-area" id="eventsSwipe"></div>
+            <div id="noEvents" style="display:none;height:100%;flex-direction:column;align-items:center;justify-content:center;color:white;">
+                <div style="font-size:6rem;margin-bottom:20px;">🎉</div>
+                <p>Nenhum evento disponível no momento</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MEUS EVENTOS -->
+    <div id="profileScreen" class="screen">
+        <button class="back-btn" onclick="showTinder()">← Voltar</button>
+        <div class="profile-container">
+            <h2 style="text-align:center;margin:40px 0 30px;color:white;">Meus Eventos</h2>
+            <div id="myEventsList"></div>
+        </div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chatScreen" class="screen">
+        <div class="chat-header">
+            <button onclick="backToMyEvents()" style="background:none;border:none;color:white;font-size:1.8rem;">←</button>
+            <div style="flex:1">
+                <h3 id="chatEventName" style="margin:0;"></h3>
+                <small id="chatParticipantCount"></small>
+            </div>
+            <button onclick="openRatingModalFromChat()" style="background:rgba(255,255,255,0.25);color:white;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;">⭐ Avaliar</button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Digite sua mensagem...">
+            <button class="send-btn" onclick="sendMessage()">↑</button>
+        </div>
+    </div>
+
+    <!-- MODAL NOVO EVENTO -->
+    <div id="addEventModal" class="modal">
+        <div class="modal-content">
+            <h2 style="text-align:center;margin-bottom:25px;color:var(--primary);">Novo Evento</h2>
+            <form id="eventForm">
+                <input type="text" name="name" placeholder="Nome do evento *" required>
+                <textarea name="desc" placeholder="Descrição *" rows="4" required></textarea>
+                <input type="text" name="location" placeholder="Localização *" required>
+                <input type="url" name="mapsUrl" placeholder="Google Maps (opcional)">
+                <input type="url" name="url" placeholder="Link do WhatsApp (opcional)">
+                <select name="category" required>
+                    <option value="">Categoria</option>
+                    <option value="festa">🎉 Festa</option>
+                    <option value="esporte">⚽ Esporte</option>
+                    <option value="musica">🎵 Música</option>
+                </select>
+                <button type="submit" style="background:var(--primary);color:white;width:100%;padding:16px;border:none;border-radius:12px;font-weight:600;">Publicar Evento</button>
+                <button type="button" id="closeAddModal" style="background:#f0f0f0;color:#333;width:100%;padding:16px;border:none;border-radius:12px;margin-top:8px;">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR EVENTO -->
+    <div id="editEventModal" class="modal">
+        <div class="modal-content">
+            <h2 style="text-align:center;margin-bottom:25px;color:var(--primary);">Editar Evento</h2>
+            <form id="editEventForm">
+                <input type="hidden" id="editEventId">
+                <input type="text" id="editName" placeholder="Nome do evento *" required>
+                <textarea id="editDesc" placeholder="Descrição *" rows="4" required></textarea>
+                <input type="text" id="editLocation" placeholder="Localização *" required>
+                <input type="url" id="editMapsUrl" placeholder="Google Maps (opcional)">
+                <input type="url" id="editUrl" placeholder="Link do WhatsApp (opcional)">
+                <select id="editCategory" required>
+                    <option value="">Categoria</option>
+                    <option value="festa">🎉 Festa</option>
+                    <option value="esporte">⚽ Esporte</option>
+                    <option value="musica">🎵 Música</option>
+                </select>
+                <button type="submit" style="background:var(--primary);color:white;width:100%;padding:16px;border:none;border-radius:12px;font-weight:600;">Salvar Alterações</button>
+                <button type="button" id="closeEditModal" style="background:#f0f0f0;color:#333;width:100%;padding:16px;border:none;border-radius:12px;margin-top:8px;">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL AVALIAÇÃO -->
+    <div id="ratingModal" class="modal">
+        <div class="modal-content">
+            <h2 style="text-align:center;margin-bottom:15px;color:var(--primary);">Avaliar Evento</h2>
+            <h3 id="ratingEventName" style="text-align:center;margin-bottom:25px;color:#333;"></h3>
+            <div id="starRating" class="rating" style="justify-content:center;font-size:2.5rem;margin:25px 0;"></div>
+            <textarea id="ratingComment" placeholder="Deixe sua opinião (opcional)" rows="4" style="width:100%;padding:15px;border:2px solid #ddd;border-radius:12px;"></textarea>
+            <button onclick="submitRating()" style="background:var(--green);color:white;width:100%;padding:16px;border:none;border-radius:12px;font-weight:600;margin:15px 0 10px;">Enviar Avaliação</button>
+            <button onclick="closeRatingModal()" style="background:#f0f0f0;color:#333;width:100%;padding:16px;border:none;border-radius:12px;">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        // ==================== FIREBASE CONFIG ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBW_VBIrvMnVAw0mVDB7LsEHY7HlEZlk3c",
+            authDomain: "grupo2-v2.firebaseapp.com",
+            projectId: "grupo2-v2",
+            storageBucket: "grupo2-v2.firebasestorage.app",
+            messagingSenderId: "173883071236",
+            appId: "1:173883071236:web:22401f6013f3d5a724ce51"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let allEvents = [];
+        let filteredEvents = [];
+        let currentEventIndex = 0;
+        let currentChatEventId = null;
+        let currentRatingEventId = null;
+        let userRating = 0;
+        let unsubscribeChat = null;
+
+        const els = {
+            globalLoading: document.getElementById('globalLoading'),
+            userPhoto: document.getElementById('userPhoto'),
+            userName: document.getElementById('userName'),
+            swipeArea: document.getElementById('eventsSwipe'),
+            noEvents: document.getElementById('noEvents'),
+            searchInput: document.getElementById('eventSearch'),
+            myEventsList: document.getElementById('myEventsList'),
+            chatMessages: document.getElementById('chatMessages')
+        };
+
+        function showLoading(show) { els.globalLoading.style.display = show ? 'flex' : 'none'; }
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.background = type === 'success' ? '#2A9D8F' : '#9B2A2A';
+            toast.style.transform = 'translateX(0)';
+            setTimeout(() => toast.style.transform = 'translateX(400px)', 2800);
+        }
+        function escapeHtml(text) { return (text || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[m]); }
+        function showScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screen + 'Screen').classList.add('active');
+        }
+
+        window.showTinder = () => showScreen('tinder');
+        window.showProfile = () => { showScreen('profile'); loadMyEvents(); };
+
+        // ==================== ESTRELAS ====================
+        function createStarRating(containerId, clickable = false, initial = 0) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('span');
+                star.className = `star ${i <= initial ? 'filled' : 'empty'}`;
+                star.innerHTML = '★';
+                if (clickable) star.onclick = () => { 
+                    userRating = i; 
+                    createStarRating(containerId, true, i); 
+                };
+                container.appendChild(star);
+            }
+        }
+
+        // ==================== CHAT ====================
+        window.openChat = (eventId, eventName, count) => {
+            const event = allEvents.find(e => e.id === eventId);
+            if (!event || !(event.attendees || []).includes(currentUser.uid)) {
+                return showToast("Você precisa estar inscrito para acessar o chat.", "error");
+            }
+            currentChatEventId = eventId;
+            document.getElementById('chatEventName').textContent = eventName;
+            document.getElementById('chatParticipantCount').textContent = `${count || 1} participantes`;
+            showScreen('chatScreen');
+            loadChatMessages();
+        };
+
+        function loadChatMessages() {
+            if (unsubscribeChat) unsubscribeChat();
+            unsubscribeChat = db.collection('events').doc(currentChatEventId).collection('messages')
+                .orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+                    els.chatMessages.innerHTML = '';
+                    snapshot.forEach(doc => {
+                        const msg = doc.data();
+                        const isSent = msg.senderId === currentUser.uid;
+                        els.chatMessages.innerHTML += `
+                            <div class="message ${isSent ? 'sent' : ''}">
+                                <div class="message-bubble">${escapeHtml(msg.text)}</div>
+                                <small>${escapeHtml(msg.senderName)} • ${new Date(msg.timestamp?.toDate()).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</small>
+                            </div>`;
+                    });
+                    els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+                });
+        }
+
+        window.sendMessage = async () => {
+            const text = document.getElementById('chatInput').value.trim();
+            if (!text || !currentChatEventId) return;
+            try {
+                await db.collection('events').doc(currentChatEventId).collection('messages').add({
+                    senderId: currentUser.uid,
+                    senderName: currentUser.displayName,
+                    text: text,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('chatInput').value = '';
+            } catch (e) {
+                showToast("Erro ao enviar mensagem", "error");
+            }
+        };
+
+        window.backToMyEvents = () => {
+            if (unsubscribeChat) unsubscribeChat();
+            unsubscribeChat = null;
+            showProfile();
+        };
+
+        // ==================== AVALIAÇÃO ====================
+        window.openRatingModalFromChat = () => {
+            if (!currentChatEventId) return;
+            const event = allEvents.find(e => e.id === currentChatEventId);
+            if (event) openRatingModal(currentChatEventId, event.name);
+        };
+
+        window.openRatingModal = (eventId, eventName) => {
+            currentRatingEventId = eventId;
+            document.getElementById('ratingEventName').textContent = eventName;
+            userRating = 0;
+            createStarRating('starRating', true);
+            document.getElementById('ratingComment').value = '';
+            document.getElementById('ratingModal').classList.add('active');
+        };
+
+        window.submitRating = async () => {
+            if (userRating === 0) return showToast("Selecione pelo menos 1 estrela!", "error");
+            try {
+                showLoading(true);
+                await db.collection('events').doc(currentRatingEventId).collection('ratings').add({
+                    userId: currentUser.uid,
+                    userName: currentUser.displayName,
+                    rating: userRating,
+                    comment: document.getElementById('ratingComment').value.trim(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast("Avaliação enviada com sucesso! ⭐");
+                closeRatingModal();
+            } catch (e) {
+                showToast("Erro ao enviar avaliação", "error");
+            } finally { showLoading(false); }
+        };
+
+        window.closeRatingModal = () => document.getElementById('ratingModal').classList.remove('active');
+
+        // ==================== RENDER CARD ====================
+        function renderNextEvent() {
+            els.swipeArea.innerHTML = '';
+            els.noEvents.style.display = (filteredEvents.length === 0 || currentEventIndex >= filteredEvents.length) ? 'flex' : 'none';
+
+            if (currentEventIndex >= filteredEvents.length) return;
+
+            const event = filteredEvents[currentEventIndex];
+            const avgRating = event.avgRating ? parseFloat(event.avgRating).toFixed(1) : "—";
+
+            const cardHTML = `
+                <div class="event-card">
+                    <h2 style="color:var(--primary);margin-bottom:10px;">${escapeHtml(event.name)}</h2>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:15px;">
+                        <div class="rating">${getStarHTML(event.avgRating || 0)}</div>
+                        <span style="color:#555;">${avgRating}</span>
+                    </div>
+                    <div style="margin:12px 0;color:#555;">👥 ${event.attendeeCount || event.attendees?.length || 0} confirmados</div>
+                    <p style="color:#444;">${escapeHtml(event.desc)}</p>
+                    ${event.mapsUrl ? `<a href="${event.mapsUrl}" target="_blank" style="color:var(--green);display:block;margin:12px 0;">🗺️ Ver no Maps</a>` : ''}
+                </div>
+            `;
+
+            const buttons = `
+                <div class="action-buttons">
+                    <button class="btn-nope" onclick="handleNope('${event.id}')">✕</button>
+                    <button class="btn-superlike" onclick="handleLike('${event.id}')">⭐</button>
+                    <button class="btn-like" onclick="handleLike('${event.id}')">💚</button>
+                </div>`;
+
+            els.swipeArea.innerHTML = cardHTML + buttons;
+        }
+
+        function getStarHTML(rating) {
+            let html = '';
+            const full = Math.floor(rating || 0);
+            for (let i = 1; i <= 5; i++) html += `<span class="star ${i <= full ? 'filled' : 'empty'}">★</span>`;
+            return html;
+        }
+
+        // ==================== BUSCA ====================
+        els.searchInput.addEventListener('input', () => {
+            const term = els.searchInput.value.toLowerCase().trim();
+            filteredEvents = term ? allEvents.filter(e => 
+                (e.name || '').toLowerCase().includes(term) ||
+                (e.desc || '').toLowerCase().includes(term) ||
+                (e.location || '').toLowerCase().includes(term)
+            ) : [...allEvents];
+            currentEventIndex = 0;
+            renderNextEvent();
+        });
+
+        // ==================== LIKE / NOPE ====================
+        window.handleLike = async (eventId) => {
+            try {
+                showLoading(true);
+                await db.runTransaction(async (t) => {
+                    t.update(db.collection('events').doc(eventId), {
+                        attendees: firebase.firestore.FieldValue.arrayUnion(currentUser.uid),
+                        attendeeCount: firebase.firestore.FieldValue.increment(1)
+                    });
+                    t.set(db.collection('user_events').doc(currentUser.uid), {
+                        myEvents: firebase.firestore.FieldValue.arrayUnion(eventId),
+                        seenEvents: firebase.firestore.FieldValue.arrayUnion(eventId)
+                    }, { merge: true });
+                });
+                showToast("Inscrição confirmada!");
+            } catch (e) {
+                showToast("Erro ao confirmar presença", "error");
+            } finally {
+                showLoading(false);
+                currentEventIndex++;
+                renderNextEvent();
+            }
+        };
+
+        window.handleNope = (eventId) => {
+            db.collection('user_events').doc(currentUser.uid).set({
+                seenEvents: firebase.firestore.FieldValue.arrayUnion(eventId)
+            }, { merge: true });
+            currentEventIndex++;
+            renderNextEvent();
+        };
+
+        // ==================== CRIAR EVENTO ====================
+        document.getElementById('addEventBtn').onclick = () => document.getElementById('addEventModal').classList.add('active');
+        document.getElementById('closeAddModal').onclick = () => document.getElementById('addEventModal').classList.remove('active');
+
+        document.getElementById('eventForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            try {
+                showLoading(true);
+                const newEvent = await db.collection('events').add({
+                    name: form.name.value,
+                    desc: form.desc.value,
+                    location: form.location.value,
+                    mapsUrl: form.mapsUrl.value || '',
+                    url: form.url.value || '',
+                    category: form.category.value,
+                    creatorId: currentUser.uid,
+                    creatorName: currentUser.displayName,
+                    attendees: [currentUser.uid],
+                    attendeeCount: 1,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await db.collection('user_events').doc(currentUser.uid).set({
+                    myEvents: firebase.firestore.FieldValue.arrayUnion(newEvent.id),
+                    seenEvents: firebase.firestore.FieldValue.arrayUnion(newEvent.id)
+                }, { merge: true });
+
+                document.getElementById('addEventModal').classList.remove('active');
+                form.reset();
+                showToast("Evento criado com sucesso!");
+            } catch (error) {
+                showToast("Erro ao criar evento", "error");
+            } finally { showLoading(false); }
+        };
+
+        // ==================== EDITAR EVENTO ====================
+        window.editEvent = async (eventId) => {
+            try {
+                showLoading(true);
+                const doc = await db.collection('events').doc(eventId).get();
+                const ev = doc.data();
+                if (ev.creatorId !== currentUser.uid) {
+                    return showToast("Apenas o criador pode editar este evento.", "error");
+                }
+                document.getElementById('editEventId').value = eventId;
+                document.getElementById('editName').value = ev.name || '';
+                document.getElementById('editDesc').value = ev.desc || '';
+                document.getElementById('editLocation').value = ev.location || '';
+                document.getElementById('editMapsUrl').value = ev.mapsUrl || '';
+                document.getElementById('editUrl').value = ev.url || '';
+                document.getElementById('editCategory').value = ev.category || '';
+                document.getElementById('editEventModal').classList.add('active');
+            } catch (err) {
+                showToast("Erro ao carregar evento", "error");
+            } finally { showLoading(false); }
+        };
+
+        document.getElementById('editEventForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editEventId').value;
+            try {
+                showLoading(true);
+                await db.collection('events').doc(id).update({
+                    name: document.getElementById('editName').value,
+                    desc: document.getElementById('editDesc').value,
+                    location: document.getElementById('editLocation').value,
+                    mapsUrl: document.getElementById('editMapsUrl').value || '',
+                    url: document.getElementById('editUrl').value || '',
+                    category: document.getElementById('editCategory').value,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('editEventModal').classList.remove('active');
+                showToast("Evento atualizado!");
+                loadMyEvents();
+            } catch (err) {
+                showToast("Erro ao salvar", "error");
+            } finally { showLoading(false); }
+        };
+
+        document.getElementById('closeEditModal').onclick = () => document.getElementById('editEventModal').classList.remove('active');
+
+        // ==================== SAIR DO EVENTO ====================
+        window.removeFromEvent = async (eventId) => {
+            if (!confirm("Deseja sair deste evento?")) return;
+            try {
+                showLoading(true);
+                await db.runTransaction(async (t) => {
+                    t.update(db.collection('events').doc(eventId), {
+                        attendees: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
+                        attendeeCount: firebase.firestore.FieldValue.increment(-1)
+                    });
+                    t.update(db.collection('user_events').doc(currentUser.uid), {
+                        myEvents: firebase.firestore.FieldValue.arrayRemove(eventId),
+                        seenEvents: firebase.firestore.FieldValue.arrayRemove(eventId)
+                    });
+                });
+                showToast("Você saiu do evento.");
+                loadMyEvents();
+            } catch (e) {
+                showToast("Erro ao sair", "error");
+            } finally { showLoading(false); }
+        };
+
+        // ==================== CARREGAR MEUS EVENTOS ====================
+        async function loadMyEvents() {
+            showLoading(true);
+            try {
+                const userDoc = await db.collection('user_events').doc(currentUser.uid).get();
+                const ids = userDoc.exists ? (userDoc.data().myEvents || []) : [];
+
+                if (ids.length === 0) {
+                    els.myEventsList.innerHTML = `<p style="text-align:center;padding:80px 20px;color:#ccc;">Nenhum evento confirmado ainda.</p>`;
+                    return;
+                }
+
+                const snap = await db.collection('events').where(firebase.firestore.FieldPath.documentId(), 'in', ids.slice(0,50)).get();
+                let html = '';
+                snap.docs.forEach(doc => {
+                    const ev = doc.data();
+                    const isOwner = ev.creatorId === currentUser.uid;
+                    const attendeeCount = ev.attendeeCount || ev.attendees?.length || 1;
+
+                    html += `
+                        <div class="my-event-item ${isOwner ? 'owner' : ''}">
+                            <h3>${escapeHtml(ev.name)}</h3>
+                            <p>${escapeHtml(ev.desc)}</p>
+                            <p><strong>📍</strong> ${escapeHtml(ev.location)}</p>
+                            <div style="margin:15px 0; display:flex; gap:10px; flex-wrap:wrap;">
+                                <button onclick="openChat('${doc.id}', '${escapeHtml(ev.name)}', ${attendeeCount})" 
+                                        style="background:#6b46c1;color:white;border:none;padding:12px 20px;border-radius:30px;cursor:pointer;">
+                                    💬 Entrar no Chat
+                                </button>
+                                <button onclick="openRatingModal('${doc.id}', '${escapeHtml(ev.name)}')" 
+                                        style="background:#FFB400;color:white;border:none;padding:12px 20px;border-radius:30px;cursor:pointer;">
+                                    ⭐ Avaliar Evento
+                                </button>
+                            </div>
+                            ${isOwner ? `<button onclick="editEvent('${doc.id}')" style="background:var(--green);color:white;border:none;padding:10px 20px;border-radius:25px;margin:5px 0;cursor:pointer;">✏️ Editar</button>` : ''}
+                            <button onclick="removeFromEvent('${doc.id}')" style="background:var(--primary);color:white;border:none;padding:14px 28px;border-radius:30px;width:100%;cursor:pointer;">🚪 Sair do Evento</button>
+                        </div>`;
+                });
+                els.myEventsList.innerHTML = html;
+            } catch (e) {
+                console.error(e);
+            } finally { showLoading(false); }
+        }
+
+        // ==================== AUTH ====================
+        document.getElementById('googleLoginBtn').onclick = async () => {
+            try {
+                showLoading(true);
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await auth.signInWithPopup(provider);
+            } catch (e) {
+                showToast('Erro no login', 'error');
+            } finally { showLoading(false); }
+        };
+
+        document.getElementById('logoutBtn').onclick = () => auth.signOut();
+
+        auth.onAuthStateChanged(user => {
+            currentUser = user;
+            if (user) {
+                els.userPhoto.src = user.photoURL || '';
+                els.userName.textContent = user.displayName?.split(' ')[0] || 'Usuário';
+                showScreen('tinder');
+
+                db.collection('events').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+                    allEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    filteredEvents = allEvents.filter(e => !(e.seenEvents || []).includes(currentUser.uid));
+                    currentEventIndex = 0;
+                    renderNextEvent();
+                });
+            } else {
+                showScreen('login');
+            }
+        });
+
+        // Enter no chat
+        document.getElementById('chatInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
