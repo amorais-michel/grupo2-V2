@@ -4,691 +4,1547 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EventMatch</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
     <style>
         :root {
-            --primary: #9B2A2A;
-            --orange: #FF6B35;
-            --yellow: #FFB400;
+            --primary: #E63946;
+            --primary-light: #FF4D5A;
+            --primary-dark: #C62D39;
+            --orange: #FF8C42;
+            --yellow: #FCBF49;
             --green: #2A9D8F;
-            --dark-green: #1E3A3A;
-            --glass: rgba(255,255,255,0.95);
-            --shadow: 0 25px 70px rgba(0,0,0,0.25);
+            --green-dark: #1F7A6E;
+            --dark-navy: #1D3557;
+            --dark-navy-deeper: #0F1E2E;
+            --purple: #7C3AED;
+            --glass: rgba(255,255,255,0.08);
+            --glass-strong: rgba(255,255,255,0.92);
+            --shadow-sm: 0 4px 15px rgba(0,0,0,0.1);
+            --shadow-md: 0 12px 35px rgba(0,0,0,0.18);
+            --shadow-lg: 0 25px 70px rgba(0,0,0,0.25);
+            --shadow-glow-green: 0 0 30px rgba(42,157,143,0.4);
+            --shadow-glow-red: 0 0 30px rgba(230,57,70,0.4);
+            --shadow-glow-orange: 0 0 30px rgba(255,140,66,0.4);
+            --shadow-glow-yellow: 0 0 30px rgba(252,191,73,0.4);
+            --radius-sm: 12px;
+            --radius-md: 20px;
+            --radius-lg: 28px;
+            --radius-full: 50px;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background: linear-gradient(135deg, var(--primary), var(--dark-green));
-            height: 100vh; overflow: hidden; user-select: none;
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--dark-navy);
+            color: #1a1a2e;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        .screen { display: none; height: 100vh; }
-        .screen.active { display: block; }
 
-        .spinner { 
-            border: 5px solid rgba(255,255,255,0.3); 
-            border-top: 5px solid white; 
-            border-radius: 50%; 
-            width: 50px; height: 50px; 
-            animation: spin 1s linear infinite; 
-            margin: 0 auto 15px; 
+        #bgCanvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+        .screen {
+            position: fixed; inset: 0; z-index: 1;
+            opacity: 0; visibility: hidden;
+            transform: translateY(15px) scale(0.99);
+            transition: opacity 0.45s ease, transform 0.45s ease, visibility 0s 0.45s;
+            display: flex; flex-direction: column;
+        }
+        .screen.active {
+            opacity: 1; visibility: visible;
+            transform: translateY(0) scale(1);
+            transition: opacity 0.45s ease, transform 0.45s ease, visibility 0s 0s;
+        }
+
+        .global-loading {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(29,53,87,0.88);
+            backdrop-filter: blur(12px);
+            display: none; align-items: center; justify-content: center;
+            color: white; flex-direction: column; gap: 16px;
+        }
+        .global-loading.show { display: flex; }
+        .loader-ring {
+            width: 52px; height: 52px;
+            border: 4px solid rgba(255,255,255,0.15);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .login-container { 
-            display: flex; flex-direction: column; align-items: center; 
-            justify-content: center; height: 100vh; text-align: center; color: white; 
+        /* ===== LOGIN ===== */
+        .login-screen {
+            background: linear-gradient(-45deg, #E63946, #FF8C42, #1D3557, #2A9D8F);
+            background-size: 400% 400%;
+            animation: gradientShift 14s ease infinite;
+            align-items: center; justify-content: center;
+            text-align: center; color: white; padding: 30px;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .login-logo {
+            font-size: clamp(3rem, 10vw, 4.5rem);
+            font-weight: 900; letter-spacing: -2px; line-height: 1;
+            margin-bottom: 8px; animation: logoEntry 1s ease-out;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.3);
+        }
+        .login-logo span { color: var(--yellow); }
+        @keyframes logoEntry {
+            from { opacity: 0; transform: translateY(-30px) scale(0.8); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .login-sub {
+            font-size: 1.15rem; font-weight: 300;
+            opacity: 0; animation: fadeUp 0.8s 0.3s ease forwards;
+            margin-bottom: 50px;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 0.85; transform: translateY(0); }
+        }
+        .google-btn {
+            display: inline-flex; align-items: center; gap: 12px;
+            background: white; color: #333;
+            padding: 16px 36px; border: none; border-radius: var(--radius-full);
+            font-size: 1.05rem; font-weight: 600; cursor: pointer;
+            box-shadow: var(--shadow-md);
+            opacity: 0; animation: fadeUp 0.8s 0.6s ease forwards;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .google-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .google-btn:active { transform: scale(0.97); }
+        .google-btn img { width: 26px; height: 26px; }
+
+        /* ===== HEADER ===== */
+        .app-header {
+            background: var(--glass-strong);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            z-index: 10; flex-shrink: 0;
+        }
+        .user-info {
+            display: flex; align-items: center; gap: 12px;
+            cursor: pointer; padding: 6px 10px; border-radius: var(--radius-full);
+            transition: background 0.2s;
+        }
+        .user-info:hover { background: rgba(0,0,0,0.05); }
+        .user-photo {
+            width: 44px; height: 44px; border-radius: 50%;
+            object-fit: cover; border: 2.5px solid var(--green);
+            transition: transform 0.2s;
+        }
+        .user-info:hover .user-photo { transform: scale(1.08); }
+        .user-name { font-weight: 600; font-size: 1rem; color: #1a1a2e; }
+        .header-actions { display: flex; gap: 8px; }
+        .btn-header {
+            border: none; padding: 10px 20px; border-radius: var(--radius-full);
+            font-weight: 600; font-size: 0.85rem; cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            font-family: inherit;
+        }
+        .btn-header:active { transform: scale(0.95); }
+        .btn-header.primary { background: var(--primary); color: white; }
+        .btn-header.orange { background: var(--orange); color: white; }
+
+        /* ===== BUSCA ===== */
+        .search-wrap { padding: 12px 20px 0; flex-shrink: 0; }
+        .search-bar {
+            width: 100%; max-width: 460px; margin: 0 auto; display: block;
+            padding: 14px 20px 14px 48px;
+            border: 2px solid transparent;
+            border-radius: var(--radius-full);
+            font-size: 0.95rem; font-family: inherit;
+            background: rgba(255,255,255,0.95);
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.3s, box-shadow 0.3s;
+            outline: none;
+        }
+        .search-bar:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 0 4px rgba(42,157,143,0.15);
+        }
+        .search-icon {
+            position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+            color: #999; font-size: 22px; pointer-events: none;
+        }
+        .search-wrap-inner { position: relative; max-width: 460px; margin: 0 auto; }
+
+        .card-counter {
+            text-align: center; padding: 10px 0 0;
+            font-size: 0.82rem; color: rgba(255,255,255,0.6); font-weight: 500;
+            flex-shrink: 0;
         }
 
-        .header { 
-            background: var(--glass); backdrop-filter: blur(30px); 
-            padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; 
+        /* ===== SWIPE ===== */
+        .swipe-container {
+            flex: 1; position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            padding: 10px 20px 20px;
         }
-        .user-info { display: flex; align-items: center; gap: 15px; cursor: pointer; }
-        .user-photo { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 3px solid white; }
-
-        .search-bar { 
-            width: 100%; max-width: 420px; padding: 14px 20px; 
-            border-radius: 50px; border: none; font-size: 1rem; 
-            margin: 10px auto; display: block; 
-        }
-
-        .tinder-container { height: calc(100vh - 130px); padding: 20px; position: relative; }
-        .swipe-area { height: 100%; position: relative; }
 
         .event-card {
-            position: absolute; width: clamp(320px, 90%, 380px); height: 560px;
-            background: white; border-radius: 25px; padding: 30px;
-            left: 50%; top: 50%; transform: translate(-50%, -50%);
-            box-shadow: var(--shadow);
+            position: absolute;
+            width: min(380px, calc(100vw - 40px));
+            height: min(540px, calc(100vh - 280px));
+            max-height: 540px;
+            background: white; border-radius: var(--radius-lg);
+            overflow: hidden; box-shadow: var(--shadow-lg);
+            will-change: transform; touch-action: none;
+            cursor: grab; display: flex; flex-direction: column;
         }
-
-        .rating { display: flex; gap: 5px; font-size: 1.4rem; }
-        .star.filled { color: #FFB400; }
+        .event-card:active { cursor: grabbing; }
+        .event-card.stack-behind {
+            transform: scale(0.94) translateY(14px);
+            filter: brightness(0.85); pointer-events: none;
+        }
+        .card-cover {
+            height: 42%; min-height: 160px;
+            background-size: cover; background-position: center;
+            position: relative; flex-shrink: 0;
+        }
+        .card-cover::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
+        }
+        .card-category-badge {
+            position: absolute; top: 16px; left: 16px; z-index: 2;
+            padding: 6px 14px; border-radius: var(--radius-full);
+            font-size: 0.78rem; font-weight: 600; color: white;
+            backdrop-filter: blur(8px); background: rgba(0,0,0,0.35);
+            display: flex; align-items: center; gap: 5px;
+        }
+        .card-attendee-badge {
+            position: absolute; top: 16px; right: 16px; z-index: 2;
+            padding: 6px 14px; border-radius: var(--radius-full);
+            font-size: 0.78rem; font-weight: 600; color: white;
+            backdrop-filter: blur(8px); background: rgba(0,0,0,0.35);
+            display: flex; align-items: center; gap: 5px;
+        }
+        .card-title-overlay {
+            position: absolute; bottom: 14px; left: 20px; z-index: 2;
+            color: white; font-size: 1.35rem; font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.4); line-height: 1.2;
+        }
+        .card-body {
+            flex: 1; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .card-body::-webkit-scrollbar { width: 4px; }
+        .card-body::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+        .card-rating { display: flex; align-items: center; gap: 6px; }
+        .star { font-size: 1.1rem; }
+        .star.filled { color: var(--yellow); }
         .star.empty { color: #ddd; }
+        .card-rating-num { font-size: 0.85rem; color: #777; font-weight: 500; }
+        .card-desc { font-size: 0.9rem; color: #555; line-height: 1.55; flex: 1; }
 
-        .action-buttons { 
-            position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%); 
-            display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; 
+        .card-location-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 16px; border: 2px solid var(--green);
+            border-radius: var(--radius-sm); background: none;
+            cursor: pointer; font-family: inherit; font-size: 0.85rem;
+            color: var(--green); font-weight: 600;
+            transition: all 0.2s; width: 100%;
         }
-        .btn-nope, .btn-like, .btn-superlike {
-            border-radius: 50%; border: none; cursor: pointer; 
-            box-shadow: 0 12px 35px rgba(0,0,0,0.35);
+        .card-location-btn:hover {
+            background: var(--green); color: white;
         }
-        .btn-nope { width: 65px; height: 65px; background: linear-gradient(45deg, #e63939, var(--primary)); color: white; font-size: 28px; }
-        .btn-like { width: 78px; height: 78px; background: linear-gradient(45deg, var(--green), #1a7a6e); color: white; font-size: 34px; }
-        .btn-superlike { width: 62px; height: 62px; background: linear-gradient(45deg, var(--yellow), #e0a000); color: white; font-size: 26px; }
+        .card-location-btn .material-icons-round { font-size: 20px; }
 
-        .profile-container { padding: 25px; overflow-y: auto; color: white; }
-        .back-btn { 
-            position: absolute; top: 25px; left: 25px; 
-            background: rgba(255,255,255,0.25); color: white; border: none; 
-            padding: 12px 24px; border-radius: 30px; cursor: pointer; 
+        .swipe-label {
+            position: absolute; top: 30px; z-index: 5;
+            padding: 10px 24px; border-radius: var(--radius-full);
+            font-size: 1.6rem; font-weight: 800; letter-spacing: 3px;
+            border: 4px solid; opacity: 0; pointer-events: none;
+            transition: opacity 0.1s;
         }
-        .my-event-item { 
-            background: white; color: #333; border-radius: 20px; padding: 25px; 
-            margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); 
-        }
-        .my-event-item.owner { border-left: 6px solid var(--primary); }
+        .swipe-label.like-label { right: 20px; color: var(--green); border-color: var(--green); transform: rotate(-20deg); }
+        .swipe-label.nope-label { left: 20px; color: var(--primary); border-color: var(--primary); transform: rotate(20deg); }
+        .swipe-label.super-label { top: auto; bottom: 100px; left: 50%; transform: translateX(-50%); color: var(--yellow); border-color: var(--yellow); font-size: 1.2rem; }
 
-        /* CHAT */
-        .chat-header { 
-            background: var(--primary); color: white; padding: 15px 20px; 
-            display: flex; align-items: center; gap: 15px; 
+        .action-bar {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 16px; z-index: 10;
         }
-        .chat-messages { 
-            height: calc(100vh - 180px); overflow-y: auto; padding: 20px; background: #f8f9fa; 
+        .btn-action {
+            border-radius: 50%; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
+            font-family: inherit; position: relative;
         }
-        .message { margin-bottom: 18px; max-width: 80%; }
-        .message.sent { margin-left: auto; text-align: right; }
-        .message-bubble { 
-            padding: 12px 18px; border-radius: 20px; background: #e3f2fd; display: inline-block; 
+        .btn-action:active { transform: scale(0.88) !important; }
+        .btn-action:hover { transform: scale(1.12); }
+        .btn-nope {
+            width: 58px; height: 58px;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-dark));
+            color: white; font-size: 24px;
+            box-shadow: 0 6px 20px rgba(230,57,70,0.4);
         }
-        .message.sent .message-bubble { background: var(--green); color: white; }
-        .chat-input-area { 
-            padding: 15px; background: white; border-top: 1px solid #ddd; 
-            display: flex; gap: 10px; 
+        .btn-nope:hover { box-shadow: var(--shadow-glow-red); }
+        .btn-super {
+            width: 50px; height: 50px;
+            background: linear-gradient(135deg, var(--yellow), #E0A830);
+            color: white; font-size: 20px;
+            box-shadow: 0 6px 20px rgba(252,191,73,0.4);
         }
-        .chat-input { flex: 1; padding: 14px 20px; border: 2px solid #ddd; border-radius: 30px; font-size: 1rem; }
-        .send-btn { 
-            width: 52px; height: 52px; border: none; background: var(--green); 
-            color: white; border-radius: 50%; font-size: 24px; cursor: pointer; 
+        .btn-super:hover { box-shadow: var(--shadow-glow-yellow); }
+        .btn-like {
+            width: 68px; height: 68px;
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            color: white; font-size: 30px;
+            box-shadow: 0 6px 20px rgba(42,157,143,0.4);
+        }
+        .btn-like:hover { box-shadow: var(--shadow-glow-green); }
+
+        .empty-state {
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: white; text-align: center; gap: 12px;
+        }
+        .empty-state.show { display: flex; }
+        .empty-icon { font-size: 5rem; animation: float 3s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        .empty-state p { opacity: 0.7; font-size: 1.05rem; }
+        .empty-state small { opacity: 0.45; font-size: 0.85rem; }
+
+        /* ===== PERFIL ===== */
+        .profile-screen { background: rgba(29,53,87,0.95); }
+        .back-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 5;
+            background: rgba(255,255,255,0.12); color: white; border: none;
+            padding: 10px 22px; border-radius: var(--radius-full);
+            cursor: pointer; font-family: inherit; font-weight: 500;
+            backdrop-filter: blur(10px);
+            transition: background 0.2s, transform 0.15s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.2); }
+        .back-btn:active { transform: scale(0.95); }
+        .profile-content {
+            flex: 1; overflow-y: auto; padding: 90px 20px 30px;
+        }
+        .profile-content::-webkit-scrollbar { width: 5px; }
+        .profile-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 5px; }
+        .profile-title { text-align: center; color: white; font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .profile-subtitle { text-align: center; color: rgba(255,255,255,0.5); font-size: 0.9rem; margin-bottom: 30px; }
+        .my-event-card {
+            background: white; color: #333; border-radius: var(--radius-md);
+            padding: 24px; margin-bottom: 18px;
+            box-shadow: var(--shadow-md);
+            border-left: 5px solid var(--green);
+            animation: cardSlideIn 0.4s ease both;
+        }
+        .my-event-card.owner { border-left-color: var(--orange); }
+        @keyframes cardSlideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .my-event-card h3 { font-size: 1.15rem; margin-bottom: 6px; color: var(--dark-navy); }
+        .my-event-card .event-desc { font-size: 0.88rem; color: #666; line-height: 1.5; margin-bottom: 8px; }
+        .my-event-card .event-meta { font-size: 0.82rem; color: #888; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+
+        .btn-map-profile {
+            display: inline-flex; align-items: center; gap: 5px;
+            border: 2px solid #4285F4; background: none; color: #4285F4;
+            padding: 8px 16px; border-radius: var(--radius-full);
+            font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            font-family: inherit; transition: all 0.2s;
+        }
+        .btn-map-profile:hover { background: #4285F4; color: white; }
+        .btn-map-profile .material-icons-round { font-size: 16px; }
+
+        .my-event-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-event {
+            border: none; padding: 10px 18px; border-radius: var(--radius-full);
+            font-size: 0.82rem; font-weight: 600; cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            font-family: inherit; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn-event:active { transform: scale(0.95); }
+        .btn-event.chat { background: var(--purple); color: white; }
+        .btn-event.rate { background: var(--yellow); color: #333; }
+        .btn-event.edit { background: var(--green); color: white; }
+        .btn-event.leave {
+            background: transparent; color: var(--primary);
+            border: 2px solid var(--primary);
+            margin-top: 8px; width: 100%; justify-content: center;
+        }
+        .btn-event.leave:hover { background: var(--primary); color: white; }
+        .profile-empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.4); font-size: 1rem; }
+
+        /* ===== CHAT ===== */
+        .chat-screen { background: #f0f2f5; }
+        .chat-header {
+            background: var(--dark-navy); color: white; padding: 14px 18px;
+            display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+        }
+        .chat-back {
+            background: none; border: none; color: white; font-size: 1.6rem;
+            cursor: pointer; padding: 4px; line-height: 1; transition: opacity 0.2s;
+        }
+        .chat-back:hover { opacity: 0.7; }
+        .chat-header-info { flex: 1; }
+        .chat-header-info h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+        .chat-header-info small { opacity: 0.6; font-size: 0.78rem; }
+        .btn-rate-chat {
+            background: rgba(255,255,255,0.15); color: white; border: none;
+            padding: 8px 16px; border-radius: var(--radius-full);
+            cursor: pointer; font-size: 0.82rem; font-weight: 500;
+            font-family: inherit; display: flex; align-items: center; gap: 5px;
+            transition: background 0.2s;
+        }
+        .btn-rate-chat:hover { background: rgba(255,255,255,0.25); }
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 18px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        .msg { max-width: 78%; display: flex; flex-direction: column; gap: 3px; }
+        .msg.sent { align-self: flex-end; }
+        .msg.received { align-self: flex-start; }
+        .msg-bubble {
+            padding: 12px 16px; border-radius: 18px;
+            font-size: 0.92rem; line-height: 1.45; word-break: break-word;
+        }
+        .msg.received .msg-bubble {
+            background: white; color: #333; border-bottom-left-radius: 6px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .msg.sent .msg-bubble { background: var(--green); color: white; border-bottom-right-radius: 6px; }
+        .msg-info { font-size: 0.7rem; color: #999; padding: 0 4px; }
+        .msg.sent .msg-info { text-align: right; }
+        .chat-input-area {
+            padding: 12px 16px; background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex; gap: 10px; align-items: center; flex-shrink: 0;
+        }
+        .chat-input {
+            flex: 1; padding: 13px 20px; border: 2px solid #e8e8e8;
+            border-radius: var(--radius-full); font-size: 0.95rem;
+            font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .chat-input:focus { border-color: var(--green); }
+        .chat-send {
+            width: 48px; height: 48px; border: none;
+            background: var(--green); color: white; border-radius: 50%;
+            font-size: 22px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.15s, background 0.2s; flex-shrink: 0;
+        }
+        .chat-send:active { transform: scale(0.9); }
+        .chat-send:hover { background: var(--green-dark); }
+
+        /* ===== MODAIS ===== */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 3000;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: white; border-radius: var(--radius-lg);
+            width: 100%; max-width: 500px; max-height: 90vh;
+            overflow-y: auto; padding: 36px 30px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+            animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-box::-webkit-scrollbar { width: 4px; }
+        .modal-box::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+        .modal-title {
+            text-align: center; font-size: 1.4rem; font-weight: 700;
+            color: var(--dark-navy); margin-bottom: 24px;
+        }
+        .form-field {
+            width: 100%; padding: 14px 16px;
+            border: 2px solid #e8e8e8; border-radius: var(--radius-sm);
+            font-size: 0.95rem; font-family: inherit; outline: none;
+            transition: border-color 0.2s; margin-bottom: 14px;
+        }
+        .form-field:focus { border-color: var(--green); }
+        .form-field::placeholder { color: #aaa; }
+        .btn-modal {
+            width: 100%; padding: 15px; border: none;
+            border-radius: var(--radius-sm); font-size: 1rem;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: transform 0.15s, opacity 0.2s; margin-bottom: 8px;
+        }
+        .btn-modal:active { transform: scale(0.98); }
+        .btn-modal.submit { background: var(--dark-navy); color: white; }
+        .btn-modal.submit.green { background: var(--green); }
+        .btn-modal.cancel { background: #f0f0f0; color: #666; }
+
+        /* ===== MODAL DO MAPA ===== */
+        .modal-box.map-modal {
+            max-width: 600px; padding: 0; overflow: hidden;
+        }
+        .map-modal-header {
+            background: var(--dark-navy); color: white;
+            padding: 18px 24px; display: flex;
+            align-items: center; justify-content: space-between;
+        }
+        .map-modal-header h3 {
+            font-size: 1.05rem; font-weight: 600; margin: 0;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .map-modal-close {
+            background: rgba(255,255,255,0.15); border: none;
+            color: white; width: 36px; height: 36px;
+            border-radius: 50%; cursor: pointer; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        .map-modal-close:hover { background: rgba(255,255,255,0.3); }
+        .map-container {
+            width: 100%; height: 350px; position: relative;
+            background: #e8e8e8;
+        }
+        .map-container iframe {
+            width: 100%; height: 100%; border: none;
+        }
+        .map-loading {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 10px; color: #999;
+        }
+        .map-loading .loader-ring { border-top-color: #4285F4; }
+        .map-modal-footer {
+            padding: 16px 24px; display: flex; gap: 10px;
+            border-top: 1px solid #eee;
+        }
+        .btn-open-maps {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            gap: 8px; padding: 14px; border: none; border-radius: var(--radius-sm);
+            font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            font-family: inherit; transition: transform 0.15s;
+            background: #4285F4; color: white;
+        }
+        .btn-open-maps:active { transform: scale(0.97); }
+        .btn-open-wpp {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; padding: 14px 20px; border: none;
+            border-radius: var(--radius-sm); font-size: 0.95rem;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: transform 0.15s; background: #25D366; color: white;
+        }
+        .btn-open-wpp:active { transform: scale(0.97); }
+        .map-location-text {
+            padding: 12px 24px; font-size: 0.88rem; color: #666;
+            display: flex; align-items: center; gap: 8px;
         }
 
-        .modal { 
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
-            z-index: 3000; align-items: center; justify-content: center; 
+        /* ===== RATING STARS ===== */
+        .star-rating { display: flex; gap: 6px; justify-content: center; }
+        .star-rating .star-btn {
+            background: none; border: none; font-size: 2.6rem;
+            cursor: pointer; transition: transform 0.15s; padding: 0; line-height: 1;
         }
-        .modal.active { display: flex; }
-        .modal-content { 
-            background: white; padding: 40px; border-radius: 25px; 
-            width: 92%; max-width: 520px; max-height: 92vh; overflow-y: auto; 
+        .star-rating .star-btn:hover { transform: scale(1.2); }
+        .star-rating .star-btn.filled { color: var(--yellow); }
+        .star-rating .star-btn.empty { color: #ddd; }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; z-index: 6000;
+            padding: 14px 28px; border-radius: var(--radius-full);
+            color: white; font-weight: 600; font-size: 0.92rem;
+            box-shadow: var(--shadow-lg);
+            transform: translate(-50%, 100px); opacity: 0;
+            transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), opacity 0.4s;
+            display: flex; align-items: center; gap: 8px; white-space: nowrap;
         }
-        .modal-content input, .modal-content textarea, .modal-content select {
-            width: 100%; padding: 16px; margin-bottom: 18px; border: 2px solid #ddd; 
-            border-radius: 12px; font-size: 1rem;
+        .toast.show { transform: translate(-50%, 0); opacity: 1; }
+        .toast.success { background: var(--green); }
+        .toast.error { background: var(--primary); }
+
+        /* ===== CONFIRM ===== */
+        .confirm-icon { font-size: 3.5rem; margin-bottom: 12px; }
+        .confirm-title { font-size: 1.2rem; font-weight: 700; color: #333; margin-bottom: 8px; text-align: center; }
+        .confirm-text { font-size: 0.9rem; color: #777; margin-bottom: 24px; text-align: center; line-height: 1.5; }
+        .confirm-actions { display: flex; gap: 10px; }
+        .confirm-actions .btn-modal { margin-bottom: 0; }
+        .btn-modal.danger { background: var(--primary); color: white; }
+
+        .cat-festa { background: rgba(230,57,70,0.85); }
+        .cat-esporte { background: rgba(42,157,143,0.85); }
+        .cat-musica { background: rgba(124,58,237,0.85); }
+        .cat-cultural { background: rgba(59,130,246,0.85); }
+        .cat-gastronomia { background: rgba(255,140,66,0.85); }
+        .cat-tecnologia { background: rgba(6,182,212,0.85); }
+
+        @keyframes cardEnter {
+            from { opacity: 0; transform: translateY(30px) scale(0.92); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        #toast { 
-            position: fixed; bottom: 30px; right: 30px; padding: 18px 25px; 
-            border-radius: 20px; color: white; font-weight: 600; 
-            transform: translateX(400px); transition: all 0.4s; z-index: 5000; 
+        @media (max-width: 420px) {
+            .event-card { height: min(500px, calc(100vh - 250px)); }
+            .card-cover { height: 36%; min-height: 130px; }
+            .action-bar { gap: 12px; bottom: 10px; }
+            .btn-nope { width: 50px; height: 50px; font-size: 20px; }
+            .btn-like { width: 60px; height: 60px; font-size: 26px; }
+            .btn-super { width: 44px; height: 44px; font-size: 18px; }
+            .header-actions { gap: 5px; }
+            .btn-header { padding: 8px 14px; font-size: 0.78rem; }
+            .app-header { padding: 10px 14px; }
+            .modal-box { padding: 28px 20px; }
+            .map-container { height: 280px; }
+            .map-modal-footer { flex-direction: column; }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        :focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
     </style>
 </head>
 <body>
 
-    <!-- LOADING -->
-    <div id="globalLoading" style="position:fixed;inset:0;background:linear-gradient(135deg, #9B2A2A, #1E3A3A);display:none;align-items:center;justify-content:center;z-index:9999;color:white;">
-        <div style="text-align:center;"><div class="spinner"></div><div>Carregando...</div></div>
-    </div>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
 
-    <!-- LOGIN -->
-    <div id="loginScreen" class="screen active">
-        <div class="login-container">
-            <h1 style="font-size:3.8rem;margin-bottom:20px;font-weight:700;">EventMatch</h1>
-            <p style="margin-bottom:50px;opacity:0.9;font-size:1.2rem;">Eventos incríveis com um swipe</p>
-            <button id="googleLoginBtn" style="background:white;color:#333;padding:14px 32px;border:none;border-radius:50px;font-size:1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;">
-                <img src="https://developers.google.com/identity/images/g-logo.png" width="28" height="28" alt="Google">
-                Entrar com Google
+<div class="global-loading" id="globalLoading" role="alert" aria-live="polite">
+    <div class="loader-ring"></div>
+    <span>Carregando...</span>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="screen login-screen active">
+    <div class="login-logo">Event<span>Match</span></div>
+    <p class="login-sub">Descubra eventos incríveis com um swipe</p>
+    <button class="google-btn" id="googleLoginBtn" aria-label="Entrar com conta Google">
+        <img src="https://developers.google.com/identity/images/g-logo.png" width="26" height="26" alt="">
+        Entrar com Google
+    </button>
+</div>
+
+<!-- TINDER -->
+<div id="tinderScreen" class="screen">
+    <header class="app-header">
+        <div class="user-info" id="userInfoBtn" role="button" tabindex="0" aria-label="Ver meu perfil">
+            <img id="userPhoto" class="user-photo" src="" alt="Foto de perfil">
+            <span class="user-name" id="userName">Usuário</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header orange" id="addEventBtn">+ Evento</button>
+            <button class="btn-header primary" id="logoutBtn">Sair</button>
+        </div>
+    </header>
+    <div class="search-wrap">
+        <div class="search-wrap-inner">
+            <span class="material-icons-round search-icon">search</span>
+            <input type="text" id="eventSearch" class="search-bar" placeholder="Buscar eventos..." aria-label="Buscar eventos">
+        </div>
+    </div>
+    <div class="card-counter" id="cardCounter"></div>
+    <div class="swipe-container" id="swipeContainer">
+        <div class="empty-state" id="emptyState">
+            <div class="empty-icon">🎉</div>
+            <p>Nenhum evento disponível</p>
+            <small>Crie um evento ou volte mais tarde</small>
+        </div>
+    </div>
+    <div class="action-bar" id="actionBar" style="display:none;">
+        <button class="btn-action btn-nope" id="btnNope" aria-label="Pular evento">
+            <span class="material-icons-round">close</span>
+        </button>
+        <button class="btn-action btn-super" id="btnSuper" aria-label="Super curtir">
+            <span class="material-icons-round">star</span>
+        </button>
+        <button class="btn-action btn-like" id="btnLike" aria-label="Curtir evento">
+            <span class="material-icons-round">favorite</span>
+        </button>
+    </div>
+</div>
+
+<!-- PERFIL -->
+<div id="profileScreen" class="screen profile-screen">
+    <button class="back-btn" id="backToTinderBtn" aria-label="Voltar">
+        <span class="material-icons-round" style="font-size:20px;">arrow_back</span> Voltar
+    </button>
+    <div class="profile-content" id="profileContent">
+        <h2 class="profile-title">Meus Eventos</h2>
+        <p class="profile-subtitle" id="profileCount"></p>
+        <div id="myEventsList"></div>
+    </div>
+</div>
+
+<!-- CHAT -->
+<div id="chatScreen" class="screen chat-screen">
+    <div class="chat-header">
+        <button class="chat-back" id="chatBackBtn" aria-label="Voltar">
+            <span class="material-icons-round">arrow_back</span>
+        </button>
+        <div class="chat-header-info">
+            <h3 id="chatEventName"></h3>
+            <small id="chatParticipantCount"></small>
+        </div>
+        <button class="btn-rate-chat" id="btnRateFromChat">
+            <span class="material-icons-round" style="font-size:16px;">star</span> Avaliar
+        </button>
+    </div>
+    <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
+    <div class="chat-input-area">
+        <input type="text" id="chatInput" class="chat-input" placeholder="Digite sua mensagem..." aria-label="Mensagem">
+        <button class="chat-send" id="chatSendBtn" aria-label="Enviar mensagem">
+            <span class="material-icons-round">send</span>
+        </button>
+    </div>
+</div>
+
+<!-- MODAL: NOVO EVENTO -->
+<div class="modal-overlay" id="addEventModal">
+    <div class="modal-box">
+        <h2 class="modal-title">Criar Evento</h2>
+        <form id="eventForm" novalidate>
+            <input class="form-field" type="text" name="name" placeholder="Nome do evento *" required>
+            <textarea class="form-field" name="desc" placeholder="Descrição *" rows="3" required></textarea>
+            <input class="form-field" type="text" name="location" placeholder="Localização ex: Rua Augusta, 1200, São Paulo *" required>
+            <input class="form-field" type="url" name="mapsUrl" placeholder="Link do Google Maps (opcional - preencha se quiser local exato)">
+            <input class="form-field" type="url" name="url" placeholder="Link do WhatsApp do evento (opcional)">
+            <select class="form-field" name="category" required>
+                <option value="">Selecione a categoria *</option>
+                <option value="festa">🎉 Festa</option>
+                <option value="esporte">⚽ Esporte</option>
+                <option value="musica">🎵 Música</option>
+                <option value="cultural">🎭 Cultural</option>
+                <option value="gastronomia">🍽️ Gastronomia</option>
+                <option value="tecnologia">💻 Tecnologia</option>
+            </select>
+            <button type="submit" class="btn-modal submit">Publicar Evento</button>
+            <button type="button" class="btn-modal cancel" data-close="addEventModal">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR EVENTO -->
+<div class="modal-overlay" id="editEventModal">
+    <div class="modal-box">
+        <h2 class="modal-title">Editar Evento</h2>
+        <form id="editEventForm" novalidate>
+            <input type="hidden" id="editEventId">
+            <input class="form-field" type="text" id="editName" placeholder="Nome do evento *" required>
+            <textarea class="form-field" id="editDesc" placeholder="Descrição *" rows="3" required></textarea>
+            <input class="form-field" type="text" id="editLocation" placeholder="Localização *" required>
+            <input class="form-field" type="url" id="editMapsUrl" placeholder="Link do Google Maps (opcional)">
+            <input class="form-field" type="url" id="editUrl" placeholder="Link do WhatsApp (opcional)">
+            <select class="form-field" id="editCategory" required>
+                <option value="">Selecione a categoria *</option>
+                <option value="festa">🎉 Festa</option>
+                <option value="esporte">⚽ Esporte</option>
+                <option value="musica">🎵 Música</option>
+                <option value="cultural">🎭 Cultural</option>
+                <option value="gastronomia">🍽️ Gastronomia</option>
+                <option value="tecnologia">💻 Tecnologia</option>
+            </select>
+            <button type="submit" class="btn-modal submit">Salvar Alterações</button>
+            <button type="button" class="btn-modal cancel" data-close="editEventModal">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: AVALIAÇÃO -->
+<div class="modal-overlay" id="ratingModal">
+    <div class="modal-box" style="text-align:center;">
+        <h2 class="modal-title">Avaliar Evento</h2>
+        <h3 id="ratingEventName" style="color:#555;font-weight:500;margin-bottom:20px;font-size:1rem;"></h3>
+        <div class="star-rating" id="starRating"></div>
+        <textarea class="form-field" id="ratingComment" placeholder="Deixe sua opinião (opcional)" rows="3" style="margin-top:18px;text-align:left;"></textarea>
+        <button class="btn-modal submit green" id="submitRatingBtn">Enviar Avaliação</button>
+        <button class="btn-modal cancel" data-close="ratingModal">Cancelar</button>
+    </div>
+</div>
+
+<!-- MODAL: MAPA -->
+<div class="modal-overlay" id="mapModal">
+    <div class="modal-box map-modal">
+        <div class="map-modal-header">
+            <h3>
+                <span class="material-icons-round" style="font-size:22px;">location_on</span>
+                <span id="mapEventName">Local do Evento</span>
+            </h3>
+            <button class="map-modal-close" data-close="mapModal" aria-label="Fechar mapa">
+                <span class="material-icons-round">close</span>
+            </button>
+        </div>
+        <div class="map-container" id="mapContainer">
+            <div class="map-loading" id="mapLoading">
+                <div class="loader-ring"></div>
+                <span style="font-size:0.85rem;">Carregando mapa...</span>
+            </div>
+        </div>
+        <div class="map-location-text" id="mapLocationText">
+            <span class="material-icons-round" style="font-size:18px;color:#999;">place</span>
+            <span id="mapLocationAddr"></span>
+        </div>
+        <div class="map-modal-footer">
+            <button class="btn-open-maps" id="btnOpenMaps">
+                <span class="material-icons-round" style="font-size:20px;">directions</span>
+                Abrir no Google Maps
+            </button>
+            <button class="btn-open-wpp" id="btnOpenWpp" style="display:none;">
+                <span class="material-icons-round" style="font-size:20px;">chat</span>
+                WhatsApp
             </button>
         </div>
     </div>
+</div>
 
-    <!-- TINDER -->
-    <div id="tinderScreen" class="screen">
-        <header class="header">
-            <div class="user-info" onclick="showProfile()">
-                <img id="userPhoto" class="user-photo" src="" alt="">
-                <div id="userName" style="font-weight:600;font-size:1.1rem;">Usuário</div>
-            </div>
-            <div>
-                <button id="addEventBtn" style="background:var(--orange);color:white;border:none;padding:12px 26px;border-radius:30px;margin-right:8px;font-weight:600;">+ Evento</button>
-                <button id="logoutBtn" style="background:var(--primary);color:white;border:none;padding:12px 26px;border-radius:30px;font-weight:600;">Sair</button>
-            </div>
-        </header>
-        <div class="tinder-container">
-            <input type="text" id="eventSearch" class="search-bar" placeholder="🔍 Buscar eventos...">
-            <div class="swipe-area" id="eventsSwipe"></div>
-            <div id="noEvents" style="display:none;height:100%;flex-direction:column;align-items:center;justify-content:center;color:white;">
-                <div style="font-size:6rem;margin-bottom:20px;">🎉</div>
-                <p>Nenhum evento disponível no momento</p>
-            </div>
+<!-- MODAL: CONFIRMAÇÃO -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box" style="text-align:center;">
+        <div class="confirm-icon" id="confirmIcon"></div>
+        <div class="confirm-title" id="confirmTitle"></div>
+        <div class="confirm-text" id="confirmText"></div>
+        <div class="confirm-actions">
+            <button class="btn-modal cancel" id="confirmNo" style="flex:1;">Cancelar</button>
+            <button class="btn-modal danger" id="confirmYes" style="flex:1;">Confirmar</button>
         </div>
     </div>
+</div>
 
-    <!-- MEUS EVENTOS -->
-    <div id="profileScreen" class="screen">
-        <button class="back-btn" onclick="showTinder()">← Voltar</button>
-        <div class="profile-container">
-            <h2 style="text-align:center;margin:40px 0 30px;color:white;">Meus Eventos</h2>
-            <div id="myEventsList"></div>
-        </div>
-    </div>
+<script>
+// ==================== FIREBASE ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyBW_VBIrvMnVAw0mVDB7LsEHY7HlEZlk3c",
+    authDomain: "grupo2-v2.firebaseapp.com",
+    projectId: "grupo2-v2",
+    storageBucket: "grupo2-v2.firebasestorage.app",
+    messagingSenderId: "173883071236",
+    appId: "1:173883071236:web:22401f6013f3d5a724ce51"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-    <!-- CHAT -->
-    <div id="chatScreen" class="screen">
-        <div class="chat-header">
-            <button onclick="backToMyEvents()" style="background:none;border:none;color:white;font-size:1.8rem;">←</button>
-            <div style="flex:1">
-                <h3 id="chatEventName" style="margin:0;"></h3>
-                <small id="chatParticipantCount"></small>
-            </div>
-            <button onclick="openRatingModalFromChat()" style="background:rgba(255,255,255,0.25);color:white;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;">⭐ Avaliar</button>
-        </div>
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input-area">
-            <input type="text" id="chatInput" class="chat-input" placeholder="Digite sua mensagem...">
-            <button class="send-btn" onclick="sendMessage()">↑</button>
-        </div>
-    </div>
+// ==================== ESTADO ====================
+let currentUser = null;
+let allEvents = [];
+let filteredEvents = [];
+let currentCardIndex = 0;
+let currentChatEventId = null;
+let currentRatingEventId = null;
+let userRating = 0;
+let unsubscribeChat = null;
+let confirmCallback = null;
+let isDragging = false;
+let startX = 0, startY = 0, currentX = 0, currentY = 0, startTime = 0;
+let activeCard = null;
 
-    <!-- MODAL NOVO EVENTO -->
-    <div id="addEventModal" class="modal">
-        <div class="modal-content">
-            <h2 style="text-align:center;margin-bottom:25px;color:var(--primary);">Novo Evento</h2>
-            <form id="eventForm">
-                <input type="text" name="name" placeholder="Nome do evento *" required>
-                <textarea name="desc" placeholder="Descrição *" rows="4" required></textarea>
-                <input type="text" name="location" placeholder="Localização *" required>
-                <input type="url" name="mapsUrl" placeholder="Google Maps (opcional)">
-                <input type="url" name="url" placeholder="Link do WhatsApp (opcional)">
-                <select name="category" required>
-                    <option value="">Categoria</option>
-                    <option value="festa">🎉 Festa</option>
-                    <option value="esporte">⚽ Esporte</option>
-                    <option value="musica">🎵 Música</option>
-                </select>
-                <button type="submit" style="background:var(--primary);color:white;width:100%;padding:16px;border:none;border-radius:12px;font-weight:600;">Publicar Evento</button>
-                <button type="button" id="closeAddModal" style="background:#f0f0f0;color:#333;width:100%;padding:16px;border:none;border-radius:12px;margin-top:8px;">Cancelar</button>
-            </form>
-        </div>
-    </div>
+let currentMapData = { location: '', mapsUrl: '', wppUrl: '' };
 
-    <!-- MODAL EDITAR EVENTO -->
-    <div id="editEventModal" class="modal">
-        <div class="modal-content">
-            <h2 style="text-align:center;margin-bottom:25px;color:var(--primary);">Editar Evento</h2>
-            <form id="editEventForm">
-                <input type="hidden" id="editEventId">
-                <input type="text" id="editName" placeholder="Nome do evento *" required>
-                <textarea id="editDesc" placeholder="Descrição *" rows="4" required></textarea>
-                <input type="text" id="editLocation" placeholder="Localização *" required>
-                <input type="url" id="editMapsUrl" placeholder="Google Maps (opcional)">
-                <input type="url" id="editUrl" placeholder="Link do WhatsApp (opcional)">
-                <select id="editCategory" required>
-                    <option value="">Categoria</option>
-                    <option value="festa">🎉 Festa</option>
-                    <option value="esporte">⚽ Esporte</option>
-                    <option value="musica">🎵 Música</option>
-                </select>
-                <button type="submit" style="background:var(--primary);color:white;width:100%;padding:16px;border:none;border-radius:12px;font-weight:600;">Salvar Alterações</button>
-                <button type="button" id="closeEditModal" style="background:#f0f0f0;color:#333;width:100%;padding:16px;border:none;border-radius:12px;margin-top:8px;">Cancelar</button>
-            </form>
-        </div>
-    </div>
+const $ = id => document.getElementById(id);
+const bgCanvas = $('bgCanvas');
+const ctx = bgCanvas.getContext('2d');
 
-    <!-- MODAL AVALIAÇÃO -->
-    <div id="ratingModal" class="modal">
-        <div class="modal-content">
-            <h2 style="text-align:center;margin-bottom:15px;color:var(--primary);">Avaliar Evento</h2>
-            <h3 id="ratingEventName" style="text-align:center;margin-bottom:25px;color:#333;"></h3>
-            <div id="starRating" class="rating" style="justify-content:center;font-size:2.5rem;margin:25px 0;"></div>
-            <textarea id="ratingComment" placeholder="Deixe sua opinião (opcional)" rows="4" style="width:100%;padding:15px;border:2px solid #ddd;border-radius:12px;"></textarea>
-            <button onclick="submitRating()" style="background:var(--green);color:white;width:100%;padding:16px;border:none;border-radius:12px;font-weight:600;margin:15px 0 10px;">Enviar Avaliação</button>
-            <button onclick="closeRatingModal()" style="background:#f0f0f0;color:#333;width:100%;padding:16px;border:none;border-radius:12px;">Cancelar</button>
-        </div>
-    </div>
+// ==================== UTILITÁRIOS ====================
+function showLoading(show) { $('globalLoading').classList.toggle('show', show); }
 
-    <div id="toast"></div>
+function showToast(msg, type = 'success') {
+    const t = $('toast');
+    t.innerHTML = `<span class="material-icons-round" style="font-size:20px;">${type === 'success' ? 'check_circle' : 'error'}</span>${msg}`;
+    t.className = `toast ${type} show`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
 
-    <script>
-        // ==================== FIREBASE CONFIG ====================
-        const firebaseConfig = {
-            apiKey: "AIzaSyBW_VBIrvMnVAw0mVDB7LsEHY7HlEZlk3c",
-            authDomain: "grupo2-v2.firebaseapp.com",
-            projectId: "grupo2-v2",
-            storageBucket: "grupo2-v2.firebasestorage.app",
-            messagingSenderId: "173883071236",
-            appId: "1:173883071236:web:22401f6013f3d5a724ce51"
-        };
+function escapeHtml(text) {
+    return (text || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[m]);
+}
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    $(id).classList.add('active');
+}
 
-        let currentUser = null;
-        let allEvents = [];
-        let filteredEvents = [];
-        let currentEventIndex = 0;
-        let currentChatEventId = null;
-        let currentRatingEventId = null;
-        let userRating = 0;
-        let unsubscribeChat = null;
+function showConfirm(icon, title, text, callback) {
+    $('confirmIcon').textContent = icon;
+    $('confirmTitle').textContent = title;
+    $('confirmText').textContent = text;
+    confirmCallback = callback;
+    $('confirmModal').classList.add('show');
+}
 
-        const els = {
-            globalLoading: document.getElementById('globalLoading'),
-            userPhoto: document.getElementById('userPhoto'),
-            userName: document.getElementById('userName'),
-            swipeArea: document.getElementById('eventsSwipe'),
-            noEvents: document.getElementById('noEvents'),
-            searchInput: document.getElementById('eventSearch'),
-            myEventsList: document.getElementById('myEventsList'),
-            chatMessages: document.getElementById('chatMessages')
-        };
+function getCategoryLabel(cat) {
+    const map = { festa:'🎉 Festa', esporte:'⚽ Esporte', musica:'🎵 Música', cultural:'🎭 Cultural', gastronomia:'🍽️ Gastronomia', tecnologia:'💻 Tecnologia' };
+    return map[cat] || cat || 'Evento';
+}
 
-        function showLoading(show) { els.globalLoading.style.display = show ? 'flex' : 'none'; }
-        function showToast(msg, type = 'success') {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.style.background = type === 'success' ? '#2A9D8F' : '#9B2A2A';
-            toast.style.transform = 'translateX(0)';
-            setTimeout(() => toast.style.transform = 'translateX(400px)', 2800);
-        }
-        function escapeHtml(text) { return (text || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[m]); }
-        function showScreen(screen) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screen + 'Screen').classList.add('active');
-        }
+function getCoverSeed(event) {
+    return `${event.category || 'evento'}-${event.id.slice(0,8)}`;
+}
 
-        window.showTinder = () => showScreen('tinder');
-        window.showProfile = () => { showScreen('profile'); loadMyEvents(); };
+function getStarHTML(rating) {
+    let html = '';
+    const full = Math.floor(rating || 0);
+    for (let i = 1; i <= 5; i++) html += `<span class="star ${i <= full ? 'filled' : 'empty'}">★</span>`;
+    return html;
+}
 
-        // ==================== ESTRELAS ====================
-        function createStarRating(containerId, clickable = false, initial = 0) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            for (let i = 1; i <= 5; i++) {
-                const star = document.createElement('span');
-                star.className = `star ${i <= initial ? 'filled' : 'empty'}`;
-                star.innerHTML = '★';
-                if (clickable) star.onclick = () => { 
-                    userRating = i; 
-                    createStarRating(containerId, true, i); 
-                };
-                container.appendChild(star);
-            }
-        }
-
-        // ==================== CHAT ====================
-        window.openChat = (eventId, eventName, count) => {
-            const event = allEvents.find(e => e.id === eventId);
-            if (!event || !(event.attendees || []).includes(currentUser.uid)) {
-                return showToast("Você precisa estar inscrito para acessar o chat.", "error");
-            }
-            currentChatEventId = eventId;
-            document.getElementById('chatEventName').textContent = eventName;
-            document.getElementById('chatParticipantCount').textContent = `${count || 1} participantes`;
-            showScreen('chatScreen');
-            loadChatMessages();
-        };
-
-        function loadChatMessages() {
-            if (unsubscribeChat) unsubscribeChat();
-            unsubscribeChat = db.collection('events').doc(currentChatEventId).collection('messages')
-                .orderBy('timestamp', 'asc').onSnapshot(snapshot => {
-                    els.chatMessages.innerHTML = '';
-                    snapshot.forEach(doc => {
-                        const msg = doc.data();
-                        const isSent = msg.senderId === currentUser.uid;
-                        els.chatMessages.innerHTML += `
-                            <div class="message ${isSent ? 'sent' : ''}">
-                                <div class="message-bubble">${escapeHtml(msg.text)}</div>
-                                <small>${escapeHtml(msg.senderName)} • ${new Date(msg.timestamp?.toDate()).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</small>
-                            </div>`;
-                    });
-                    els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
-                });
-        }
-
-        window.sendMessage = async () => {
-            const text = document.getElementById('chatInput').value.trim();
-            if (!text || !currentChatEventId) return;
-            try {
-                await db.collection('events').doc(currentChatEventId).collection('messages').add({
-                    senderId: currentUser.uid,
-                    senderName: currentUser.displayName,
-                    text: text,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                document.getElementById('chatInput').value = '';
-            } catch (e) {
-                showToast("Erro ao enviar mensagem", "error");
-            }
-        };
-
-        window.backToMyEvents = () => {
-            if (unsubscribeChat) unsubscribeChat();
-            unsubscribeChat = null;
-            showProfile();
-        };
-
-        // ==================== AVALIAÇÃO ====================
-        window.openRatingModalFromChat = () => {
-            if (!currentChatEventId) return;
-            const event = allEvents.find(e => e.id === currentChatEventId);
-            if (event) openRatingModal(currentChatEventId, event.name);
-        };
-
-        window.openRatingModal = (eventId, eventName) => {
-            currentRatingEventId = eventId;
-            document.getElementById('ratingEventName').textContent = eventName;
-            userRating = 0;
-            createStarRating('starRating', true);
-            document.getElementById('ratingComment').value = '';
-            document.getElementById('ratingModal').classList.add('active');
-        };
-
-        window.submitRating = async () => {
-            if (userRating === 0) return showToast("Selecione pelo menos 1 estrela!", "error");
-            try {
-                showLoading(true);
-                await db.collection('events').doc(currentRatingEventId).collection('ratings').add({
-                    userId: currentUser.uid,
-                    userName: currentUser.displayName,
-                    rating: userRating,
-                    comment: document.getElementById('ratingComment').value.trim(),
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                showToast("Avaliação enviada com sucesso! ⭐");
-                closeRatingModal();
-            } catch (e) {
-                showToast("Erro ao enviar avaliação", "error");
-            } finally { showLoading(false); }
-        };
-
-        window.closeRatingModal = () => document.getElementById('ratingModal').classList.remove('active');
-
-        // ==================== RENDER CARD ====================
-        function renderNextEvent() {
-            els.swipeArea.innerHTML = '';
-            els.noEvents.style.display = (filteredEvents.length === 0 || currentEventIndex >= filteredEvents.length) ? 'flex' : 'none';
-
-            if (currentEventIndex >= filteredEvents.length) return;
-
-            const event = filteredEvents[currentEventIndex];
-            const avgRating = event.avgRating ? parseFloat(event.avgRating).toFixed(1) : "—";
-
-            const cardHTML = `
-                <div class="event-card">
-                    <h2 style="color:var(--primary);margin-bottom:10px;">${escapeHtml(event.name)}</h2>
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:15px;">
-                        <div class="rating">${getStarHTML(event.avgRating || 0)}</div>
-                        <span style="color:#555;">${avgRating}</span>
-                    </div>
-                    <div style="margin:12px 0;color:#555;">👥 ${event.attendeeCount || event.attendees?.length || 0} confirmados</div>
-                    <p style="color:#444;">${escapeHtml(event.desc)}</p>
-                    ${event.mapsUrl ? `<a href="${event.mapsUrl}" target="_blank" style="color:var(--green);display:block;margin:12px 0;">🗺️ Ver no Maps</a>` : ''}
-                </div>
-            `;
-
-            const buttons = `
-                <div class="action-buttons">
-                    <button class="btn-nope" onclick="handleNope('${event.id}')">✕</button>
-                    <button class="btn-superlike" onclick="handleLike('${event.id}')">⭐</button>
-                    <button class="btn-like" onclick="handleLike('${event.id}')">💚</button>
-                </div>`;
-
-            els.swipeArea.innerHTML = cardHTML + buttons;
-        }
-
-        function getStarHTML(rating) {
-            let html = '';
-            const full = Math.floor(rating || 0);
-            for (let i = 1; i <= 5; i++) html += `<span class="star ${i <= full ? 'filled' : 'empty'}">★</span>`;
-            return html;
-        }
-
-        // ==================== BUSCA ====================
-        els.searchInput.addEventListener('input', () => {
-            const term = els.searchInput.value.toLowerCase().trim();
-            filteredEvents = term ? allEvents.filter(e => 
-                (e.name || '').toLowerCase().includes(term) ||
-                (e.desc || '').toLowerCase().includes(term) ||
-                (e.location || '').toLowerCase().includes(term)
-            ) : [...allEvents];
-            currentEventIndex = 0;
-            renderNextEvent();
+// ==================== PARTÍCULAS ====================
+let particles = [];
+function initParticles() {
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+    particles = [];
+    const count = Math.min(35, Math.floor(window.innerWidth / 30));
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: Math.random() * bgCanvas.width,
+            y: Math.random() * bgCanvas.height,
+            r: Math.random() * 3 + 1,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: (Math.random() - 0.5) * 0.4,
+            alpha: Math.random() * 0.3 + 0.05,
+            hue: Math.random() > 0.5 ? 42 : 170
         });
-
-        // ==================== LIKE / NOPE ====================
-        window.handleLike = async (eventId) => {
-            try {
-                showLoading(true);
-                await db.runTransaction(async (t) => {
-                    t.update(db.collection('events').doc(eventId), {
-                        attendees: firebase.firestore.FieldValue.arrayUnion(currentUser.uid),
-                        attendeeCount: firebase.firestore.FieldValue.increment(1)
-                    });
-                    t.set(db.collection('user_events').doc(currentUser.uid), {
-                        myEvents: firebase.firestore.FieldValue.arrayUnion(eventId),
-                        seenEvents: firebase.firestore.FieldValue.arrayUnion(eventId)
-                    }, { merge: true });
-                });
-                showToast("Inscrição confirmada!");
-            } catch (e) {
-                showToast("Erro ao confirmar presença", "error");
-            } finally {
-                showLoading(false);
-                currentEventIndex++;
-                renderNextEvent();
+    }
+}
+function animateParticles() {
+    ctx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    const grd = ctx.createLinearGradient(0, 0, bgCanvas.width, bgCanvas.height);
+    grd.addColorStop(0, '#1D3557');
+    grd.addColorStop(1, '#0F1E2E');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = bgCanvas.width;
+        if (p.x > bgCanvas.width) p.x = 0;
+        if (p.y < 0) p.y = bgCanvas.height;
+        if (p.y > bgCanvas.height) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, p.r), 0, Math.PI * 2);
+        if (p.hue === 42) {
+            ctx.fillStyle = `rgba(252,191,73,${p.alpha})`;
+        } else {
+            ctx.fillStyle = `rgba(42,157,143,${p.alpha})`;
+        }
+        ctx.fill();
+    });
+    for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 140) {
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.strokeStyle = `rgba(42,157,143,${0.08 * (1 - dist / 140)})`;
+                ctx.lineWidth = 0.8;
+                ctx.stroke();
             }
-        };
+        }
+    }
+    requestAnimationFrame(animateParticles);
+}
+window.addEventListener('resize', () => { bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight; });
+initParticles();
+animateParticles();
 
-        window.handleNope = (eventId) => {
-            db.collection('user_events').doc(currentUser.uid).set({
+// ==================== GOOGLE MAPS ====================
+function openMapModal(eventName, location, mapsUrl, wppUrl) {
+    currentMapData = { location, mapsUrl: mapsUrl || '', wppUrl: wppUrl || '' };
+    $('mapEventName').textContent = eventName;
+    $('mapLocationAddr').textContent = location;
+
+    const container = $('mapContainer');
+
+    let embedUrl;
+    if (mapsUrl) {
+        const placeMatch = mapsUrl.match(/place\/([^/]+)/);
+        const queryMatch = mapsUrl.match(/[?&]q=([^&]+)/);
+        const coordMatch = mapsUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+
+        if (coordMatch) {
+            embedUrl = `https://maps.google.com/maps?q=${coordMatch[1]},${coordMatch[2]}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+        } else if (placeMatch) {
+            embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(placeMatch[1])}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+        } else if (queryMatch) {
+            embedUrl = `https://maps.google.com/maps?q=${queryMatch[1]}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+        } else {
+            embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+        }
+    } else {
+        embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=16&ie=UTF8&iwloc=&output=embed`;
+    }
+
+    container.innerHTML = `
+        <div class="map-loading" id="mapLoading">
+            <div class="loader-ring"></div>
+            <span style="font-size:0.85rem;">Carregando mapa...</span>
+        </div>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+    iframe.src = embedUrl;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;opacity:0;transition:opacity 0.4s;';
+
+    iframe.addEventListener('load', () => {
+        const ld = container.querySelector('.map-loading');
+        if (ld) ld.remove();
+        iframe.style.opacity = '1';
+    });
+
+    iframe.addEventListener('error', () => {
+        const ld = container.querySelector('.map-loading');
+        if (ld) ld.innerHTML = '<span class="material-icons-round" style="font-size:40px;color:#ccc;">map_off</span><span style="font-size:0.85rem;color:#999;">Não foi possível carregar o mapa</span>';
+    });
+
+    container.appendChild(iframe);
+
+    $('btnOpenWpp').style.display = wppUrl ? 'flex' : 'none';
+    $('mapModal').classList.add('show');
+}
+
+ $('btnOpenMaps').addEventListener('click', () => {
+    const { location, mapsUrl } = currentMapData;
+    const url = mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+    window.open(url, '_blank', 'noopener');
+});
+
+ $('btnOpenWpp').addEventListener('click', () => {
+    if (currentMapData.wppUrl) window.open(currentMapData.wppUrl, '_blank', 'noopener');
+});
+
+// ==================== SWIPE ====================
+const SWIPE_THRESHOLD = 100;
+const VELOCITY_THRESHOLD = 0.4;
+
+function renderCards() {
+    const container = $('swipeContainer');
+    const empty = $('emptyState');
+    const actionBar = $('actionBar');
+    const counter = $('cardCounter');
+
+    container.querySelectorAll('.event-card').forEach(c => c.remove());
+
+    const remaining = filteredEvents.length - currentCardIndex;
+
+    if (remaining <= 0) {
+        empty.classList.add('show');
+        actionBar.style.display = 'none';
+        counter.textContent = '';
+        return;
+    }
+
+    empty.classList.remove('show');
+    actionBar.style.display = 'flex';
+    counter.textContent = `${remaining} evento${remaining !== 1 ? 's' : ''} disponível${remaining !== 1 ? 'is' : ''}`;
+
+    if (remaining > 1) {
+        const behindEvent = filteredEvents[currentCardIndex + 1];
+        const behindCard = buildCardElement(behindEvent);
+        behindCard.classList.add('stack-behind');
+        container.appendChild(behindCard);
+    }
+
+    const mainEvent = filteredEvents[currentCardIndex];
+    const mainCard = buildCardElement(mainEvent);
+    mainCard.style.animation = 'cardEnter 0.4s ease both';
+    container.appendChild(mainCard);
+
+    ['like-label', 'nope-label', 'super-label'].forEach(cls => {
+        const label = document.createElement('div');
+        label.className = `swipe-label ${cls}`;
+        label.textContent = cls === 'like-label' ? 'CURTI' : cls === 'nope-label' ? 'NEXT' : 'SUPER LIKE';
+        mainCard.appendChild(label);
+    });
+
+    activeCard = mainCard;
+    mainCard.addEventListener('pointerdown', onSwipeStart, { passive: false });
+}
+
+function buildCardElement(event) {
+    const card = document.createElement('div');
+    card.className = 'event-card';
+    const avgRating = event.avgRating ? parseFloat(event.avgRating).toFixed(1) : '—';
+    const attendeeCount = event.attendeeCount || event.attendees?.length || 0;
+    const catClass = `cat-${event.category || 'festa'}`;
+    const coverUrl = `https://picsum.photos/seed/${getCoverSeed(event)}/400/250`;
+
+    card.innerHTML = `
+        <div class="card-cover" style="background-image:url('${coverUrl}')">
+            <div class="card-category-badge ${catClass}">${getCategoryLabel(event.category)}</div>
+            <div class="card-attendee-badge">
+                <span class="material-icons-round" style="font-size:16px;">people</span> ${attendeeCount}
+            </div>
+            <div class="card-title-overlay">${escapeHtml(event.name)}</div>
+        </div>
+        <div class="card-body">
+            <div class="card-rating">
+                <div>${getStarHTML(event.avgRating || 0)}</div>
+                <span class="card-rating-num">${avgRating}</span>
+            </div>
+            <p class="card-desc">${escapeHtml(event.desc)}</p>
+            <button class="card-location-btn" data-action="map" data-id="${event.id}">
+                <span class="material-icons-round">location_on</span>
+                ${escapeHtml(event.location)}
+            </button>
+        </div>
+    `;
+    card.dataset.eventId = event.id;
+
+    card.querySelector('.card-location-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ev = allEvents.find(x => x.id === event.id);
+        if (ev) openMapModal(ev.name, ev.location, ev.mapsUrl, ev.url);
+    });
+
+    return card;
+}
+
+function onSwipeStart(e) {
+    if (!activeCard) return;
+    if (e.target.closest('.card-location-btn')) return;
+    isDragging = true;
+    startX = e.clientX; startY = e.clientY;
+    startTime = Date.now(); currentX = 0; currentY = 0;
+    activeCard.style.transition = 'none';
+    activeCard.setPointerCapture(e.pointerId);
+    activeCard.addEventListener('pointermove', onSwipeMove, { passive: false });
+    activeCard.addEventListener('pointerup', onSwipeEnd, { once: true });
+    activeCard.addEventListener('pointercancel', onSwipeEnd, { once: true });
+}
+
+function onSwipeMove(e) {
+    if (!isDragging || !activeCard) return;
+    e.preventDefault();
+    currentX = e.clientX - startX;
+    currentY = e.clientY - startY;
+    activeCard.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${currentX * 0.08}deg)`;
+    const progress = Math.min(Math.abs(currentX) / SWIPE_THRESHOLD, 1);
+    activeCard.querySelector('.like-label').style.opacity = currentX > 0 ? progress : 0;
+    activeCard.querySelector('.nope-label').style.opacity = currentX < 0 ? progress : 0;
+    activeCard.querySelector('.super-label').style.opacity = currentY < -80 ? Math.min((Math.abs(currentY) - 80) / 100, 1) : 0;
+}
+
+function onSwipeEnd() {
+    if (!isDragging || !activeCard) return;
+    isDragging = false;
+    const elapsed = Date.now() - startTime;
+    const velocity = Math.abs(currentX) / elapsed;
+    const eventId = activeCard.dataset.eventId;
+    activeCard.querySelectorAll('.swipe-label').forEach(l => l.style.opacity = 0);
+
+    if (currentY < -120) {
+        flyCard('up', () => handleLike(eventId));
+    } else if (currentX > SWIPE_THRESHOLD || (currentX > 40 && velocity > VELOCITY_THRESHOLD)) {
+        flyCard('right', () => handleLike(eventId));
+    } else if (currentX < -SWIPE_THRESHOLD || (currentX < -40 && velocity > VELOCITY_THRESHOLD)) {
+        flyCard('left', () => handleNope(eventId));
+    } else {
+        activeCard.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        activeCard.style.transform = 'translate(0,0) rotate(0deg)';
+    }
+}
+
+function flyCard(direction, callback) {
+    if (!activeCard) return;
+    const card = activeCard;
+    activeCard = null;
+    card.style.transition = 'transform 0.45s ease-out, opacity 0.45s ease-out';
+    if (direction === 'right') { card.style.transform = 'translate(150%, 0) rotate(30deg)'; }
+    else if (direction === 'left') { card.style.transform = 'translate(-150%, 0) rotate(-30deg)'; }
+    else { card.style.transform = 'translate(0, -150%) scale(0.8)'; }
+    card.style.opacity = '0';
+    setTimeout(() => callback(), 300);
+}
+
+function animateButtonAction(direction) {
+    let btn;
+    if (direction === 'right') btn = $('btnLike');
+    else if (direction === 'left') btn = $('btnNope');
+    else btn = $('btnSuper');
+    if (btn) { btn.style.transition = 'transform 0.1s'; btn.style.transform = 'scale(0.85)'; setTimeout(() => btn.style.transform = '', 150); }
+}
+
+// ==================== LIKE / NOPE ====================
+async function handleLike(eventId) {
+    try {
+        showLoading(true);
+        await db.runTransaction(async t => {
+            t.update(db.collection('events').doc(eventId), {
+                attendees: firebase.firestore.FieldValue.arrayUnion(currentUser.uid),
+                attendeeCount: firebase.firestore.FieldValue.increment(1)
+            });
+            t.set(db.collection('user_events').doc(currentUser.uid), {
+                myEvents: firebase.firestore.FieldValue.arrayUnion(eventId),
                 seenEvents: firebase.firestore.FieldValue.arrayUnion(eventId)
             }, { merge: true });
-            currentEventIndex++;
-            renderNextEvent();
-        };
+        });
+        showToast('Inscrição confirmada!');
+    } catch (e) { showToast('Erro ao confirmar presença', 'error'); }
+    finally { showLoading(false); currentCardIndex++; renderCards(); }
+}
 
-        // ==================== CRIAR EVENTO ====================
-        document.getElementById('addEventBtn').onclick = () => document.getElementById('addEventModal').classList.add('active');
-        document.getElementById('closeAddModal').onclick = () => document.getElementById('addEventModal').classList.remove('active');
+function handleNope(eventId) {
+    db.collection('user_events').doc(currentUser.uid).set({
+        seenEvents: firebase.firestore.FieldValue.arrayUnion(eventId)
+    }, { merge: true }).catch(() => {});
+    currentCardIndex++;
+    renderCards();
+}
 
-        document.getElementById('eventForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            try {
-                showLoading(true);
-                const newEvent = await db.collection('events').add({
-                    name: form.name.value,
-                    desc: form.desc.value,
-                    location: form.location.value,
-                    mapsUrl: form.mapsUrl.value || '',
-                    url: form.url.value || '',
-                    category: form.category.value,
-                    creatorId: currentUser.uid,
-                    creatorName: currentUser.displayName,
-                    attendees: [currentUser.uid],
-                    attendeeCount: 1,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+ $('btnLike').addEventListener('click', () => {
+    if (!activeCard || !filteredEvents[currentCardIndex]) return;
+    animateButtonAction('right');
+    flyCard('right', () => handleLike(filteredEvents[currentCardIndex]?.id));
+});
+ $('btnNope').addEventListener('click', () => {
+    if (!activeCard || !filteredEvents[currentCardIndex]) return;
+    animateButtonAction('left');
+    flyCard('left', () => handleNope(filteredEvents[currentCardIndex]?.id));
+});
+ $('btnSuper').addEventListener('click', () => {
+    if (!activeCard || !filteredEvents[currentCardIndex]) return;
+    animateButtonAction('up');
+    flyCard('up', () => handleLike(filteredEvents[currentCardIndex]?.id));
+});
 
-                await db.collection('user_events').doc(currentUser.uid).set({
-                    myEvents: firebase.firestore.FieldValue.arrayUnion(newEvent.id),
-                    seenEvents: firebase.firestore.FieldValue.arrayUnion(newEvent.id)
-                }, { merge: true });
+// ==================== BUSCA ====================
+ $('eventSearch').addEventListener('input', () => {
+    const term = $('eventSearch').value.toLowerCase().trim();
+    filteredEvents = term
+        ? allEvents.filter(e => (e.name||'').toLowerCase().includes(term) || (e.desc||'').toLowerCase().includes(term) || (e.location||'').toLowerCase().includes(term) || (e.category||'').toLowerCase().includes(term))
+        : [...allEvents];
+    currentCardIndex = 0;
+    renderCards();
+});
 
-                document.getElementById('addEventModal').classList.remove('active');
-                form.reset();
-                showToast("Evento criado com sucesso!");
-            } catch (error) {
-                showToast("Erro ao criar evento", "error");
-            } finally { showLoading(false); }
-        };
+// ==================== CHAT ====================
+function openChat(eventId, eventName, count) {
+    const event = allEvents.find(e => e.id === eventId);
+    if (!event || !(event.attendees || []).includes(currentUser.uid)) return showToast('Você precisa estar inscrito para acessar o chat.', 'error');
+    currentChatEventId = eventId;
+    $('chatEventName').textContent = eventName;
+    $('chatParticipantCount').textContent = `${count || 1} participante${count !== 1 ? 's' : ''}`;
+    showScreen('chatScreen');
+    loadChatMessages();
+}
 
-        // ==================== EDITAR EVENTO ====================
-        window.editEvent = async (eventId) => {
-            try {
-                showLoading(true);
-                const doc = await db.collection('events').doc(eventId).get();
-                const ev = doc.data();
-                if (ev.creatorId !== currentUser.uid) {
-                    return showToast("Apenas o criador pode editar este evento.", "error");
-                }
-                document.getElementById('editEventId').value = eventId;
-                document.getElementById('editName').value = ev.name || '';
-                document.getElementById('editDesc').value = ev.desc || '';
-                document.getElementById('editLocation').value = ev.location || '';
-                document.getElementById('editMapsUrl').value = ev.mapsUrl || '';
-                document.getElementById('editUrl').value = ev.url || '';
-                document.getElementById('editCategory').value = ev.category || '';
-                document.getElementById('editEventModal').classList.add('active');
-            } catch (err) {
-                showToast("Erro ao carregar evento", "error");
-            } finally { showLoading(false); }
-        };
+function loadChatMessages() {
+    if (unsubscribeChat) unsubscribeChat();
+    const container = $('chatMessages');
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:40px;font-size:0.9rem;">Carregando...</div>';
+    unsubscribeChat = db.collection('events').doc(currentChatEventId).collection('messages').orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+        container.innerHTML = '';
+        if (snapshot.empty) { container.innerHTML = '<div style="text-align:center;color:#aaa;padding:60px 20px;font-size:0.9rem;">Nenhuma mensagem ainda.</div>'; return; }
+        snapshot.forEach(doc => {
+            const msg = doc.data();
+            const isSent = msg.senderId === currentUser.uid;
+            const time = msg.timestamp?.toDate ? new Date(msg.timestamp.toDate()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+            const div = document.createElement('div');
+            div.className = `msg ${isSent ? 'sent' : 'received'}`;
+            div.innerHTML = `<div class="msg-bubble">${escapeHtml(msg.text)}</div><span class="msg-info">${escapeHtml(msg.senderName)}${time ? ' · ' + time : ''}</span>`;
+            container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+    });
+}
 
-        document.getElementById('editEventForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('editEventId').value;
-            try {
-                showLoading(true);
-                await db.collection('events').doc(id).update({
-                    name: document.getElementById('editName').value,
-                    desc: document.getElementById('editDesc').value,
-                    location: document.getElementById('editLocation').value,
-                    mapsUrl: document.getElementById('editMapsUrl').value || '',
-                    url: document.getElementById('editUrl').value || '',
-                    category: document.getElementById('editCategory').value,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                document.getElementById('editEventModal').classList.remove('active');
-                showToast("Evento atualizado!");
-                loadMyEvents();
-            } catch (err) {
-                showToast("Erro ao salvar", "error");
-            } finally { showLoading(false); }
-        };
+function sendMessage() {
+    const input = $('chatInput');
+    const text = input.value.trim();
+    if (!text || !currentChatEventId) return;
+    input.value = '';
+    db.collection('events').doc(currentChatEventId).collection('messages').add({
+        senderId: currentUser.uid, senderName: currentUser.displayName,
+        text, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => showToast('Erro ao enviar mensagem', 'error'));
+}
 
-        document.getElementById('closeEditModal').onclick = () => document.getElementById('editEventModal').classList.remove('active');
+ $('chatSendBtn').addEventListener('click', sendMessage);
+ $('chatInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+ $('chatBackBtn').addEventListener('click', () => {
+    if (unsubscribeChat) unsubscribeChat();
+    unsubscribeChat = null; currentChatEventId = null;
+    showScreen('profileScreen'); loadMyEvents();
+});
 
-        // ==================== SAIR DO EVENTO ====================
-        window.removeFromEvent = async (eventId) => {
-            if (!confirm("Deseja sair deste evento?")) return;
-            try {
-                showLoading(true);
-                await db.runTransaction(async (t) => {
-                    t.update(db.collection('events').doc(eventId), {
-                        attendees: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
-                        attendeeCount: firebase.firestore.FieldValue.increment(-1)
-                    });
-                    t.update(db.collection('user_events').doc(currentUser.uid), {
-                        myEvents: firebase.firestore.FieldValue.arrayRemove(eventId),
-                        seenEvents: firebase.firestore.FieldValue.arrayRemove(eventId)
-                    });
-                });
-                showToast("Você saiu do evento.");
-                loadMyEvents();
-            } catch (e) {
-                showToast("Erro ao sair", "error");
-            } finally { showLoading(false); }
-        };
+// ==================== AVALIAÇÃO ====================
+function openRatingModal(eventId, eventName) {
+    currentRatingEventId = eventId;
+    $('ratingEventName').textContent = eventName;
+    userRating = 0; renderStarRating();
+    $('ratingComment').value = '';
+    $('ratingModal').classList.add('show');
+}
 
-        // ==================== CARREGAR MEUS EVENTOS ====================
-        async function loadMyEvents() {
+function renderStarRating() {
+    const c = $('starRating'); c.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `star-btn ${i <= userRating ? 'filled' : 'empty'}`;
+        btn.textContent = '★';
+        btn.setAttribute('aria-label', `${i} estrela${i > 1 ? 's' : ''}`);
+        btn.addEventListener('click', () => { userRating = i; renderStarRating(); });
+        btn.addEventListener('mouseenter', () => { c.querySelectorAll('.star-btn').forEach((s, idx) => s.className = `star-btn ${idx < i ? 'filled' : 'empty'}`); });
+        btn.addEventListener('mouseleave', () => renderStarRating());
+        c.appendChild(btn);
+    }
+}
+
+ $('submitRatingBtn').addEventListener('click', async () => {
+    if (userRating === 0) return showToast('Selecione pelo menos 1 estrela!', 'error');
+    try {
+        showLoading(true);
+        await db.collection('events').doc(currentRatingEventId).collection('ratings').add({
+            userId: currentUser.uid, userName: currentUser.displayName,
+            rating: userRating, comment: $('ratingComment').value.trim(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showToast('Avaliação enviada!');
+        $('ratingModal').classList.remove('show');
+    } catch (e) { showToast('Erro ao enviar avaliação', 'error'); }
+    finally { showLoading(false); }
+});
+
+ $('btnRateFromChat').addEventListener('click', () => {
+    if (!currentChatEventId) return;
+    const event = allEvents.find(e => e.id === currentChatEventId);
+    if (event) openRatingModal(currentChatEventId, event.name);
+});
+
+// ==================== CRIAR EVENTO ====================
+ $('addEventBtn').addEventListener('click', () => $('addEventModal').classList.add('show'));
+
+ $('eventForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const name = form.name.value.trim();
+    const desc = form.desc.value.trim();
+    const location = form.location.value.trim();
+    const category = form.category.value;
+    if (!name || !desc || !location || !category) return showToast('Preencha todos os campos obrigatórios!', 'error');
+    try {
+        showLoading(true);
+        const newEvent = await db.collection('events').add({
+            name, desc, location,
+            mapsUrl: form.mapsUrl.value.trim() || '',
+            url: form.url.value.trim() || '',
+            category, creatorId: currentUser.uid, creatorName: currentUser.displayName,
+            attendees: [currentUser.uid], attendeeCount: 1,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await db.collection('user_events').doc(currentUser.uid).set({
+            myEvents: firebase.firestore.FieldValue.arrayUnion(newEvent.id),
+            seenEvents: firebase.firestore.FieldValue.arrayUnion(newEvent.id)
+        }, { merge: true });
+        $('addEventModal').classList.remove('show');
+        form.reset();
+        showToast('Evento criado com sucesso!');
+    } catch (err) { showToast('Erro ao criar evento', 'error'); }
+    finally { showLoading(false); }
+});
+
+// ==================== EDITAR EVENTO ====================
+async function editEvent(eventId) {
+    try {
+        showLoading(true);
+        const doc = await db.collection('events').doc(eventId).get();
+        const ev = doc.data();
+        if (ev.creatorId !== currentUser.uid) return showToast('Apenas o criador pode editar.', 'error');
+        $('editEventId').value = eventId;
+        $('editName').value = ev.name || '';
+        $('editDesc').value = ev.desc || '';
+        $('editLocation').value = ev.location || '';
+        $('editMapsUrl').value = ev.mapsUrl || '';
+        $('editUrl').value = ev.url || '';
+        $('editCategory').value = ev.category || '';
+        $('editEventModal').classList.add('show');
+    } catch (err) { showToast('Erro ao carregar evento', 'error'); }
+    finally { showLoading(false); }
+}
+
+ $('editEventForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = $('editEventId').value;
+    try {
+        showLoading(true);
+        await db.collection('events').doc(id).update({
+            name: $('editName').value.trim(), desc: $('editDesc').value.trim(),
+            location: $('editLocation').value.trim(),
+            mapsUrl: $('editMapsUrl').value.trim() || '', url: $('editUrl').value.trim() || '',
+            category: $('editCategory').value, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        $('editEventModal').classList.remove('show');
+        showToast('Evento atualizado!');
+        loadMyEvents();
+    } catch (err) { showToast('Erro ao salvar', 'error'); }
+    finally { showLoading(false); }
+});
+
+// ==================== SAIR DO EVENTO ====================
+function removeFromEvent(eventId) {
+    showConfirm('🚪', 'Sair do evento?', 'Você poderá se inscrever novamente depois.', async () => {
+        try {
             showLoading(true);
-            try {
-                const userDoc = await db.collection('user_events').doc(currentUser.uid).get();
-                const ids = userDoc.exists ? (userDoc.data().myEvents || []) : [];
-
-                if (ids.length === 0) {
-                    els.myEventsList.innerHTML = `<p style="text-align:center;padding:80px 20px;color:#ccc;">Nenhum evento confirmado ainda.</p>`;
-                    return;
-                }
-
-                const snap = await db.collection('events').where(firebase.firestore.FieldPath.documentId(), 'in', ids.slice(0,50)).get();
-                let html = '';
-                snap.docs.forEach(doc => {
-                    const ev = doc.data();
-                    const isOwner = ev.creatorId === currentUser.uid;
-                    const attendeeCount = ev.attendeeCount || ev.attendees?.length || 1;
-
-                    html += `
-                        <div class="my-event-item ${isOwner ? 'owner' : ''}">
-                            <h3>${escapeHtml(ev.name)}</h3>
-                            <p>${escapeHtml(ev.desc)}</p>
-                            <p><strong>📍</strong> ${escapeHtml(ev.location)}</p>
-                            <div style="margin:15px 0; display:flex; gap:10px; flex-wrap:wrap;">
-                                <button onclick="openChat('${doc.id}', '${escapeHtml(ev.name)}', ${attendeeCount})" 
-                                        style="background:#6b46c1;color:white;border:none;padding:12px 20px;border-radius:30px;cursor:pointer;">
-                                    💬 Entrar no Chat
-                                </button>
-                                <button onclick="openRatingModal('${doc.id}', '${escapeHtml(ev.name)}')" 
-                                        style="background:#FFB400;color:white;border:none;padding:12px 20px;border-radius:30px;cursor:pointer;">
-                                    ⭐ Avaliar Evento
-                                </button>
-                            </div>
-                            ${isOwner ? `<button onclick="editEvent('${doc.id}')" style="background:var(--green);color:white;border:none;padding:10px 20px;border-radius:25px;margin:5px 0;cursor:pointer;">✏️ Editar</button>` : ''}
-                            <button onclick="removeFromEvent('${doc.id}')" style="background:var(--primary);color:white;border:none;padding:14px 28px;border-radius:30px;width:100%;cursor:pointer;">🚪 Sair do Evento</button>
-                        </div>`;
+            await db.runTransaction(async t => {
+                t.update(db.collection('events').doc(eventId), {
+                    attendees: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
+                    attendeeCount: firebase.firestore.FieldValue.increment(-1)
                 });
-                els.myEventsList.innerHTML = html;
-            } catch (e) {
-                console.error(e);
-            } finally { showLoading(false); }
+                t.update(db.collection('user_events').doc(currentUser.uid), {
+                    myEvents: firebase.firestore.FieldValue.arrayRemove(eventId),
+                    seenEvents: firebase.firestore.FieldValue.arrayRemove(eventId)
+                });
+            });
+            showToast('Você saiu do evento.');
+            loadMyEvents();
+        } catch (e) { showToast('Erro ao sair do evento', 'error'); }
+        finally { showLoading(false); }
+    });
+}
+
+// ==================== MEUS EVENTOS ====================
+async function loadMyEvents() {
+    showLoading(true);
+    const listEl = $('myEventsList');
+    listEl.innerHTML = '';
+    try {
+        const userDoc = await db.collection('user_events').doc(currentUser.uid).get();
+        const ids = userDoc.exists ? (userDoc.data().myEvents || []) : [];
+        $('profileCount').textContent = ids.length > 0 ? `${ids.length} evento${ids.length > 1 ? 's' : ''} confirmado${ids.length > 1 ? 's' : ''}` : '';
+
+        if (ids.length === 0) {
+            listEl.innerHTML = '<div class="profile-empty">Nenhum evento confirmado ainda.<br>Curta eventos para vê-los aqui!</div>';
+            return;
         }
 
-        // ==================== AUTH ====================
-        document.getElementById('googleLoginBtn').onclick = async () => {
-            try {
-                showLoading(true);
-                const provider = new firebase.auth.GoogleAuthProvider();
-                await auth.signInWithPopup(provider);
-            } catch (e) {
-                showToast('Erro no login', 'error');
-            } finally { showLoading(false); }
+        const snap = await db.collection('events').where(firebase.firestore.FieldPath.documentId(), 'in', ids.slice(0, 50)).get();
+        if (snap.empty) { listEl.innerHTML = '<div class="profile-empty">Nenhum evento encontrado.</div>'; return; }
+
+        snap.forEach((doc, idx) => {
+            const ev = doc.data();
+            const isOwner = ev.creatorId === currentUser.uid;
+            const count = ev.attendeeCount || ev.attendees?.length || 1;
+            const card = document.createElement('div');
+            card.className = `my-event-card ${isOwner ? 'owner' : ''}`;
+            card.style.animationDelay = `${idx * 0.08}s`;
+            card.innerHTML = `
+                <h3>${escapeHtml(ev.name)}</h3>
+                <p class="event-desc">${escapeHtml(ev.desc)}</p>
+                <div class="event-meta">
+                    <span class="material-icons-round" style="font-size:16px;">location_on</span>
+                    ${escapeHtml(ev.location)} &nbsp;·&nbsp;
+                    <span class="material-icons-round" style="font-size:16px;">people</span> ${count}
+                </div>
+                <div style="margin-bottom:12px;">
+                    <button class="btn-map-profile" data-action="map" data-id="${doc.id}">
+                        <span class="material-icons-round">map</span> Ver no Mapa
+                    </button>
+                </div>
+                <div class="my-event-actions">
+                    <button class="btn-event chat" data-action="chat" data-id="${doc.id}" data-name="${escapeHtml(ev.name)}" data-count="${count}">
+                        <span class="material-icons-round" style="font-size:16px;">chat</span> Chat
+                    </button>
+                    <button class="btn-event rate" data-action="rate" data-id="${doc.id}" data-name="${escapeHtml(ev.name)}">
+                        <span class="material-icons-round" style="font-size:16px;">star</span> Avaliar
+                    </button>
+                    ${isOwner ? `<button class="btn-event edit" data-action="edit" data-id="${doc.id}">
+                        <span class="material-icons-round" style="font-size:16px;">edit</span> Editar
+                    </button>` : ''}
+                    <button class="btn-event leave" data-action="leave" data-id="${doc.id}">
+                        <span class="material-icons-round" style="font-size:16px;">logout</span> Sair do Evento
+                    </button>
+                </div>
+            `;
+            listEl.appendChild(card);
+        });
+
+        listEl.onclick = (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const id = btn.dataset.id;
+            if (action === 'map') {
+                const ev = allEvents.find(x => x.id === id);
+                if (ev) openMapModal(ev.name, ev.location, ev.mapsUrl, ev.url);
+            } else if (action === 'chat') openChat(id, btn.dataset.name, parseInt(btn.dataset.count));
+            else if (action === 'rate') openRatingModal(id, btn.dataset.name);
+            else if (action === 'edit') editEvent(id);
+            else if (action === 'leave') removeFromEvent(id);
         };
+    } catch (e) { console.error(e); listEl.innerHTML = '<div class="profile-empty">Erro ao carregar eventos.</div>'; }
+    finally { showLoading(false); }
+}
 
-        document.getElementById('logoutBtn').onclick = () => auth.signOut();
+// ==================== FECHAR MODAIS ====================
+document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => $(btn.dataset.close).classList.remove('show'));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('show'); });
+});
+ $('confirmYes').addEventListener('click', () => {
+    $('confirmModal').classList.remove('show');
+    if (confirmCallback) { confirmCallback(); confirmCallback = null; }
+});
+ $('confirmNo').addEventListener('click', () => { $('confirmModal').classList.remove('show'); confirmCallback = null; });
 
-        auth.onAuthStateChanged(user => {
-            currentUser = user;
-            if (user) {
-                els.userPhoto.src = user.photoURL || '';
-                els.userName.textContent = user.displayName?.split(' ')[0] || 'Usuário';
-                showScreen('tinder');
+// ==================== NAVEGAÇÃO ====================
+ $('userInfoBtn').addEventListener('click', () => { showScreen('profileScreen'); loadMyEvents(); });
+ $('userInfoBtn').addEventListener('keypress', e => { if (e.key === 'Enter') { showScreen('profileScreen'); loadMyEvents(); } });
+ $('backToTinderBtn').addEventListener('click', () => showScreen('tinderScreen'));
 
-                db.collection('events').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-                    allEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    filteredEvents = allEvents.filter(e => !(e.seenEvents || []).includes(currentUser.uid));
-                    currentEventIndex = 0;
-                    renderNextEvent();
-                });
-            } else {
-                showScreen('login');
-            }
+// ==================== AUTH ====================
+ $('googleLoginBtn').addEventListener('click', async () => {
+    try { showLoading(true); await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+    catch (e) { showToast('Erro no login', 'error'); }
+    finally { showLoading(false); }
+});
+ $('logoutBtn').addEventListener('click', () => auth.signOut());
+
+auth.onAuthStateChanged(user => {
+    currentUser = user;
+    if (user) {
+        $('userPhoto').src = user.photoURL || 'https://picsum.photos/seed/avatar/100/100';
+        $('userName').textContent = user.displayName?.split(' ')[0] || 'Usuário';
+        showScreen('tinderScreen');
+
+        db.collection('events').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+            allEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            db.collection('user_events').doc(currentUser.uid).get().then(userDoc => {
+                const seen = userDoc.exists ? (userDoc.data().seenEvents || []) : [];
+                filteredEvents = allEvents.filter(e => !seen.includes(e.id));
+                currentCardIndex = 0;
+                renderCards();
+            }).catch(() => { filteredEvents = [...allEvents]; currentCardIndex = 0; renderCards(); });
         });
-
-        // Enter no chat
-        document.getElementById('chatInput').addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendMessage();
-        });
-    </script>
+    } else {
+        showScreen('loginScreen');
+        if (unsubscribeChat) unsubscribeChat();
+        unsubscribeChat = null;
+    }
+});
+</script>
 </body>
 </html>
